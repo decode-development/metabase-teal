@@ -12,9 +12,9 @@ const ORION_110_ALPHA_20 = "hsla(205, 63%, 5%, 0.2)";
 // To be removed once the rename in GDGT-2517 is complete. Prefer the keys in
 // `actualColors` below.
 const deprecatedColors = {
-  "admin-navbar": baseColors.octopus[80],
-  "admin-navbar-secondary": baseColors.octopus[60],
-  "admin-navbar-inverse": baseColors.octopus[60],
+  "admin-navbar": "#012D2C",
+  "admin-navbar-secondary": "#135756",
+  "admin-navbar-inverse": "#001A19",
   "background-brand": baseColors.brand[90],
   "background-filter": baseColors.filter[90],
   "background-disabled": baseColors.orionAlphaInverse[10],
@@ -23,7 +23,7 @@ const deprecatedColors = {
   "background-highlight":
     "color-mix(in srgb, var(--mb-color-core-brand) 7%, transparent)",
   "background-hover":
-    "color-mix(in srgb, var(--mb-color-core-brand) 7%, transparent)",
+    "color-mix(in srgb, var(--mb-color-core-brand) 12%, transparent)",
   "background-selected":
     "color-mix(in srgb, var(--mb-color-core-brand) 21%, transparent)",
   "background-primary": baseColors.orion[100],
@@ -36,12 +36,12 @@ const deprecatedColors = {
   "background-error": baseColors.lobster[90],
   "background-success": baseColors.palm[90],
   "background-success-secondary": baseColors.palm[70],
-  brand: baseColors.blue[40],
+  brand: "#135756",
   "brand-hover": baseColors.brand[30],
   danger: baseColors.lobster[50],
   error: baseColors.lobster[50],
   filter: baseColors.octopus[40],
-  focus: baseColors.blue[70],
+  focus: baseColors.brand[30],
   "icon-brand": baseColors.brand[40], // Matches text-brand
   "icon-brand-inverse": baseColors.brand[50],
   "icon-primary": baseColors.orionAlphaInverse[80], // Matches text-primary
@@ -52,8 +52,8 @@ const deprecatedColors = {
   "icon-secondary-inverse": baseColors.orionAlpha[60], // Matches text-secondary-inverse
   "illustration-brand-secondary": baseColors.brand[80],
   "illustration-brand-tertiary": baseColors.brand[90],
-  "metabase-brand": baseColors.blue[40],
-  "metabase-brand-hover": baseColors.blue[50],
+  "metabase-brand": "#135756",
+  "metabase-brand-hover": baseColors.brand[50],
   "saturated-blue": baseColors.ocean[40],
   "saturated-green": baseColors.palm[40],
   "saturated-purple": baseColors.octopus[40],
@@ -67,11 +67,11 @@ const deprecatedColors = {
   "syntax-parameters": baseColors.mango[40],
   "text-tertiary": baseColors.orionAlphaInverse[40],
   "text-tertiary-inverse": baseColors.orionAlpha[40],
-  "text-hover": baseColors.brand[30],
+  "text-hover": baseColors.orionAlphaInverse[90],
   "text-secondary-opaque": baseColors.orion[20],
-  warning: baseColors.dubloon[30],
-  "background-warning": baseColors.dubloon[90],
-  "background-warning-secondary": baseColors.dubloon[70],
+  warning: "#E2B018",
+  "background-warning": "color-mix(in srgb, #E2B018, black 70%)",
+  "background-warning-secondary": "color-mix(in srgb, #E2B018, black 50%)",
   info: baseColors.orion[50],
   "background-info": baseColors.orion[90],
   white: baseColors.orion[110],
@@ -80,8 +80,8 @@ const deprecatedColors = {
   "border-stronger": baseColors.orionAlphaInverse[50],
   "border-subtle": baseColors.orionAlphaInverse[10],
   gold: baseColors.gold,
-  "upsell-primary": baseColors.ocean[30],
-  "upsell-secondary": baseColors.ocean[80],
+  "upsell-primary": "#73A09D",
+  "upsell-secondary": "#012D2C",
   "upsell-gem": baseColors.upsellGem,
 };
 
@@ -109,7 +109,7 @@ const actualColors = {
   "background_surface-error": baseColors.lobster[90],
   "background_surface-error-subtle": baseColors.lobster[90],
   "background_surface-hover":
-    "color-mix(in srgb, var(--mb-color-core-brand) 7%, transparent)",
+    "color-mix(in srgb, var(--mb-color-core-brand) 12%, transparent)",
   "background_surface-primary": baseColors.orion[95], // Matches background_page-primary
   "background_surface-primary-hover": baseColors.orionAlphaInverse[20],
   "background_surface-primary-inverse": baseColors.white, // Matches background_page-primary-inverse
@@ -125,8 +125,8 @@ const actualColors = {
   "background_surface-selected":
     "color-mix(in srgb, var(--mb-color-core-brand) 21%, transparent)",
   "background_surface-success": baseColors.palm[90],
-  "background_surface-warning": baseColors.dubloon[90],
-  "background_surface-warning-strong": baseColors.dubloon[70],
+  "background_surface-warning": "color-mix(in srgb, #E2B018, black 70%)",
+  "background_surface-warning-strong": "color-mix(in srgb, #E2B018, black 50%)",
   "border-brand": baseColors.brand[80],
   "border-filter": baseColors.filter[80],
   "border-highlight": baseColors.brand[30],
@@ -150,8 +150,8 @@ const actualColors = {
   "core-gold": baseColors.gold,
   "core-green-saturated": baseColors.palm[40],
   "core-info": baseColors.orion[50],
-  "core-metabase_brand": baseColors.blue[40],
-  "core-metabase_brand-hover": baseColors.blue[50],
+  "core-metabase_brand": "#135756",
+  "core-metabase_brand-hover": baseColors.brand[50],
   "core-purple-saturated": baseColors.octopus[40],
   "core-red-saturated": baseColors.lobster[40],
   "core-white": baseColors.orion[110],
@@ -163,16 +163,16 @@ const actualColors = {
   "feedback-positive": baseColors.palm[50],
   "feedback-positive-selected": baseColors.palm[40],
   "feedback-positive-strong": baseColors.palm[20],
-  "feedback-warning": baseColors.dubloon[30],
+  "feedback-warning": "#E2B018",
   "feedback-warning-strong": baseColors.dubloon[20],
   "illustration-secondary-brand": baseColors.brand[80],
   "illustration-tertiary-brand": baseColors.brand[90],
   "input-background": baseColors.orionAlphaInverse[10],
-  "input-focus": baseColors.blue[70],
+  "input-focus": baseColors.brand[30],
   "modal-overlay": baseColors.orionAlpha[70],
-  "navbar-admin": baseColors.octopus[80],
-  "navbar-admin-inverse": baseColors.octopus[60],
-  "navbar-admin-secondary": baseColors.octopus[60],
+  "navbar-admin": "#012D2C",
+  "navbar-admin-inverse": "#001A19",
+  "navbar-admin-secondary": "#135756",
   "shadow-default": ORION_110_ALPHA_20,
   "switch-checked": baseColors.brand[30],
   "switch-disabled": baseColors.orionAlphaInverse[20],
