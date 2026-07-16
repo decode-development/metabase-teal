@@ -1,0 +1,63 @@
+name: Enforce Workflow Allowlist
+
+# Runs whenever workflow files change on master (e.g. after an upstream sync
+# lands new Metabase workflows) and disables anything whose filename does not
+# start with "teal-". Also available as a manual trigger for the initial bulk
+# disable after the first upstream sync.
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/**"
+  workflow_dispatch:
+
+jobs:
+  enforce:
+    name: Disable non-Teal workflows
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+
+    steps:
+      - name: Disable upstream workflows
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Scanning workflows in $GITHUB_REPOSITORY …"
+          echo ""
+
+          disabled=0
+          kept=0
+          skipped=0
+
+          while IFS=$'\t' read -r id state path; do
+            filename=$(basename "$path")
+
+            # Any workflow whose filename starts with "teal-" is ours — keep it.
+            if [[ "$filename" == teal-* ]]; then
+              echo "  ✅  keep     $filename"
+              (( kept++ )) || true
+
+            # Already disabled — nothing to do.
+            elif [[ "$state" == disabled_manually || "$state" == disabled_inactivity ]]; then
+              echo "  ⏭️   skipping  $filename (already disabled)"
+              (( skipped++ )) || true
+
+            # Upstream workflow — disable it.
+            else
+              echo "  🔕  disabling $filename"
+              gh api -X PUT "repos/$GITHUB_REPOSITORY/actions/workflows/$id/disable" \
+                --silent \
+                && (( disabled++ )) || true
+            fi
+
+          done < <(
+            gh api "repos/$GITHUB_REPOSITORY/actions/workflows" \
+              --paginate \
+              --jq '.workflows[] | "\(.id)\t\(.state)\t\(.path)"'
+          )
+
+          echo ""
+          echo "Done — kept: $kept  |  disabled: $disabled  |  already disabled: $skipped"
