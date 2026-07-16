@@ -19,7 +19,7 @@ No functional changes are made to the core Metabase product. All upstream featur
 | Accent cream | `#FDF0C8` | Warning backgrounds |
 | Subtle background | `#E0E6E6` | Light UI backgrounds |
 
-All colour references in the UI are CSS variables that derive from a single `--mb-color-brand` value. Changing the two files below is sufficient to retheme the entire application.
+Brand-tinted colours in the UI derive from a single `--mb-color-core-brand` value, which upstream generates from the `brand` theme key — so overriding `brand` cascades through the whole brand ramp. Changing the theme files below (plus the font setting) is sufficient to retheme the entire application.
 
 **Modified files:**
 - `frontend/src/metabase/ui/colors/constants/themes/light.ts`
@@ -67,7 +67,13 @@ This fork makes cosmetic changes only and tracks upstream Metabase release-for-r
 
 ## Upstream
 
-This fork syncs to the latest upstream release tag daily, merging it into `master` so our Teal commits always sit on top of a known-stable release.
+This fork tracks upstream Metabase release-for-release. Rather than *merging* upstream into `master`, it **rebases** the handful of Teal commits on top of each new upstream release tag, so `master` stays a clean, linear history:
+
+```
+<upstream release tag>  ──►  Apply Teal branding  ──►  <automation commits>   (master)
+```
+
+This is a **rebasing fork**: every sync rewrites `master` — our commits get new SHAs on top of the newer upstream base — and force-pushes it. That is expected and normal for this repo. Do not "fix" the history by merging upstream in; that is what created the tangled history this layout replaced.
 
 ---
 
@@ -78,7 +84,7 @@ This fork syncs to the latest upstream release tag daily, merging it into `maste
 Metabase upstream ships ~100 GitHub Actions workflows. On a fork, all of them are inherited and enabled by default. The enforce workflow disables any workflow whose filename does not start with `teal-`, keeping only this fork's own automations active.
 
 **Triggers:**
-- Automatically on any push to `master` that touches `.github/workflows/` — catches new upstream workflows arriving via a sync merge
+- Automatically on any push to `master` that touches `.github/workflows/` — catches new upstream workflows arriving via a sync
 - Manual dispatch — use this for the **initial bulk disable** after first push
 
 **Initial setup:** after pushing this repository for the first time, run the workflow manually via:
@@ -86,16 +92,40 @@ Metabase upstream ships ~100 GitHub Actions workflows. On a fork, all of them ar
 
 ### Upstream Sync — `teal-sync-upstream-release.yml`
 
-Merges the latest upstream release tag into this fork's `master` daily, keeping Teal commits on top of a known-stable release.
+Daily, rebases this fork's Teal commits onto the latest upstream release tag (see [Upstream](#upstream)).
 
 | Outcome | Result |
 |---------|--------|
-| Clean merge | Pushed to `master` automatically; release tag pushed to fork, triggering a Docker build |
-| Merge conflicts | Branch `sync/upstream-YYYY-MM-DD` pushed, PR opened for manual resolution |
+| Clean rebase | `master` is rebased and **force-pushed** automatically; that push to `master` triggers a Docker build |
+| Conflicts | The rebase is aborted and the **job fails**, with a step-by-step resolution runbook in the job summary and an error annotation on the failure notification |
 
 **Trigger:** Daily at 06:00 UTC, and available as a manual trigger.
 
-**Requires:** A repository secret named `SYNC_TOKEN` — a fine-grained PAT scoped to this repo with Contents, Workflows, and Pull Requests read/write permissions.
+**Requires:** A repository secret named `SYNC_TOKEN` — a fine-grained PAT scoped to this repo with **Contents** and **Workflows** read/write permissions. A PAT (rather than the default `GITHUB_TOKEN`) is required because pushes made with `GITHUB_TOKEN` do not trigger other workflows — the force-push to `master` needs to trigger the Docker build.
+
+#### Why conflicts fail the job instead of opening a PR
+
+This is non-standard, so it's worth stating plainly. Landing a sync **rewrites `master`** (rebase + force-push). GitHub's "Merge" button cannot do that: because our Teal commits are already on `master`, merging a rebased branch would *duplicate* them. There is therefore no mergeable PR for a sync. Issues are disabled on this fork, so the conflict is surfaced by **failing the workflow** — the resolution runbook is written to the run summary — and you land the resolution with a force-push (below).
+
+#### Resolving a sync conflict
+
+The failed run's summary contains the exact commands for that specific release; the shape is always:
+
+```bash
+git fetch origin && git checkout master && git reset --hard origin/master
+git remote add upstream https://github.com/metabase/metabase.git 2>/dev/null || true
+git fetch upstream tag <TAG> --no-tags
+
+# Replay our commits onto the new release (<OLD_BASE> is printed in the summary):
+git rebase --onto <TAG> <OLD_BASE>
+# ...resolve the <<<<<<< markers, then:
+git add -A && git rebase --continue
+
+# Land it (rewrites master) — the master push triggers the Docker build:
+git push --force-with-lease origin HEAD:master
+```
+
+Only files this fork also modifies can conflict — in practice the theme files above.
 
 **Conflict resolution for the theme files:** `light.ts` and `dark.ts` are the files most likely to conflict, because Teal overrides individual colour values on lines next to ones upstream keeps changing. Resolve them key by key rather than taking either side wholesale:
 
@@ -104,6 +134,8 @@ Merges the latest upstream release tag into this fork's `master` daily, keeping 
 - **Check every new upstream key.** A new token built from `baseColors.blue[...]` needs a `brand` or Teal-literal equivalent. Tokens built from `brand` or the neutral `orion` scales need nothing.
 - **Lint header:** Teal's hex literals require `/* eslint-disable metabase/no-color-literals */` at the top of both theme files. Upstream removes it from `light.ts` when it has no literals of its own, so re-add it if a sync drops it.
 - **Verify:** `grep -n "blue\[" frontend/src/metabase/ui/colors/constants/themes/*.ts` should return nothing.
+
+The next daily run (or a re-run) goes green once `<TAG>` is on `master`.
 
 ### Docker Publishing — `teal-docker-publish.yml`
 
@@ -115,8 +147,9 @@ docker pull ghcr.io/decode-development/metabase-teal:v0.61.2  # specific version
 ```
 
 **Triggers:**
-- Push of an upstream release tag to this fork (clean auto-merge path)
-- Merge of a `sync/upstream-*` PR into master (conflict-resolution path)
-- Manual dispatch — accepts an optional version tag, defaults to the current latest upstream release
+- Push to `master` — the clean-sync path force-pushes `master`, which fires this build. (We can't trigger on the release tag: GitHub only runs a workflow that exists at the pushed ref, and the upstream tag commit carries no Teal workflow files.)
+- Manual dispatch — accepts an optional version *label*, defaults to the current latest upstream release
+
+> **Note:** The image is always built from `master` (the branded, rebased tip), never from the upstream tag commit — the tag itself carries no Teal branding. On a `master`-push build the image is labelled with the latest upstream release; on manual dispatch the `version` input labels it. Either way the content is always `master`.
 
 > **Note:** The build compiles the full frontend and backend from source and takes approximately 60–90 minutes on a standard GitHub-hosted runner. Layer caching (`type=gha`) reduces this on subsequent builds where the system setup layers are warm.
