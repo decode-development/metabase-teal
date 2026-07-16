@@ -1,0 +1,136 @@
+name: Build and Publish Docker Image
+
+# Always builds from master — the branded, rebased tip. The upstream release
+# tag/commit itself carries no Teal branding, so we must NOT build from the tag.
+# The `version` is only the image label; the image content is master.
+#
+# Triggers:
+#   1. Push to master — done automatically by teal-sync-upstream-release.yml when
+#      it force-pushes the rebased branded tip after a clean sync. (We can't
+#      trigger on the release tag: GitHub only runs a workflow that exists at the
+#      pushed ref, and the upstream tag commit carries no Teal workflow files.)
+#   2. Manual dispatch — rebuild master, labelled with the given version.
+#
+# A push touching only `.github/workflows/**` does not rebuild: the image content
+# would be identical. `paths-ignore` skips only when *every* changed file matches,
+# so a sync that also brings source changes still builds as usual.
+
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - ".github/workflows/**"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Image version label (e.g. v0.61.2). Defaults to the current latest upstream release. Content is always built from master."
+        required: false
+
+# One build at a time: a newer master (e.g. the next sync) cancels an in-flight
+# build, so we never publish a stale tip or waste a runner on a superseded one.
+concurrency:
+  group: teal-docker-publish
+  cancel-in-progress: true
+
+jobs:
+  # ── Resolve whether this run should produce a build, and which version tag ──
+
+  resolve:
+    name: Resolve version
+    runs-on: ubuntu-26.04
+    outputs:
+      should_build: ${{ steps.resolve.outputs.should_build }}
+      version: ${{ steps.resolve.outputs.version }}
+    steps:
+      - name: Determine version and build gate
+        id: resolve
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          EVENT="${{ github.event_name }}"
+
+          if [[ "$EVENT" == "workflow_dispatch" ]]; then
+            VERSION="${{ inputs.version }}"
+            if [[ -z "$VERSION" ]]; then
+              VERSION=$(gh api repos/metabase/metabase/releases/latest --jq '.tag_name')
+            fi
+            echo "should_build=true"  >> "$GITHUB_OUTPUT"
+            echo "version=$VERSION"   >> "$GITHUB_OUTPUT"
+            echo "Manual dispatch — building $VERSION"
+
+          elif [[ "$EVENT" == "push" ]]; then
+            # master was updated (typically the sync workflow's force-push after a
+            # clean rebase). Label the image with the latest upstream release, since
+            # master tracks it release-for-release.
+            VERSION=$(gh api repos/metabase/metabase/releases/latest --jq '.tag_name')
+            echo "should_build=true"  >> "$GITHUB_OUTPUT"
+            echo "version=$VERSION"   >> "$GITHUB_OUTPUT"
+            echo "master push detected — building master, labelled $VERSION"
+          fi
+
+  # ── Build the Docker image and push to GHCR ──
+
+  build-and-push:
+    name: Build and push to GHCR
+    needs: resolve
+    if: needs.resolve.outputs.should_build == 'true'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout master (the branded, rebased tip)
+        uses: actions/checkout@v6
+        with:
+          ref: master
+
+      # Docker image names must be lowercase; github.repository preserves case.
+      - name: Normalise image name
+        id: image
+        run: |
+          echo "name=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" \
+            >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: true
+          build-args: |
+            MB_EDITION=oss
+            VERSION=${{ needs.resolve.outputs.version }}
+          tags: |
+            ${{ steps.image.outputs.name }}:${{ needs.resolve.outputs.version }}
+            ${{ steps.image.outputs.name }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Summary
+        run: |
+          IMAGE="${{ steps.image.outputs.name }}"
+          VERSION="${{ needs.resolve.outputs.version }}"
+          {
+            echo "### Docker image published"
+            echo ""
+            echo "| Tag | Image |"
+            echo "|-----|-------|"
+            echo "| \`$VERSION\` | \`$IMAGE:$VERSION\` |"
+            echo "| \`latest\`   | \`$IMAGE:latest\`   |"
+            echo ""
+            echo "\`\`\`bash"
+            echo "docker pull $IMAGE:$VERSION"
+            echo "\`\`\`"
+          } >> "$GITHUB_STEP_SUMMARY"
