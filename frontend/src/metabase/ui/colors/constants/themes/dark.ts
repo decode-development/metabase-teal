@@ -14,9 +14,9 @@ const ORION_110_ALPHA_20 = "hsla(205, 63%, 5%, 0.2)";
 // To be removed once the rename in GDGT-2517 is complete. Prefer the keys in
 // `actualColors` below.
 const getDeprecatedColors = (brand: BrandRamp) => ({
-  "admin-navbar": baseColors.octopus[80],
-  "admin-navbar-secondary": baseColors.octopus[60],
-  "admin-navbar-inverse": baseColors.octopus[60],
+  "admin-navbar": "hsla(178.6, 95.7%, 9%, 1)",
+  "admin-navbar-secondary": "hsla(179.1, 64.2%, 20.8%, 1)",
+  "admin-navbar-inverse": "hsla(177.7, 100%, 5.1%, 1)",
   "background-brand": brand[90],
   "background-filter": baseColors.filter[90],
   "background-disabled": baseColors.orionAlphaInverse[10],
@@ -25,7 +25,7 @@ const getDeprecatedColors = (brand: BrandRamp) => ({
   "background-highlight":
     "color-mix(in srgb, var(--mb-color-core-brand) 7%, transparent)",
   "background-hover":
-    "color-mix(in srgb, var(--mb-color-core-brand) 7%, transparent)",
+    "color-mix(in srgb, var(--mb-color-core-brand) 12%, transparent)",
   "background-selected":
     "color-mix(in srgb, var(--mb-color-core-brand) 21%, transparent)",
   "background-primary": baseColors.orion[100],
@@ -38,12 +38,12 @@ const getDeprecatedColors = (brand: BrandRamp) => ({
   "background-error": baseColors.lobster[90],
   "background-success": baseColors.palm[90],
   "background-success-secondary": baseColors.palm[70],
-  brand: baseColors.blue[40],
+  brand: "hsla(179.1, 64.2%, 20.8%, 1)",
   "brand-hover": brand[30],
   danger: baseColors.lobster[50],
   error: baseColors.lobster[50],
   filter: baseColors.octopus[40],
-  focus: baseColors.blue[70],
+  focus: baseColors.brand[30],
   "icon-brand": brand[40], // Matches text-brand
   "icon-brand-inverse": brand[50],
   "icon-primary": baseColors.orionAlphaInverse[80], // Matches text-primary
@@ -54,8 +54,8 @@ const getDeprecatedColors = (brand: BrandRamp) => ({
   "icon-secondary-inverse": baseColors.orionAlpha[60], // Matches text-secondary-inverse
   "illustration-brand-secondary": brand[80],
   "illustration-brand-tertiary": brand[90],
-  "metabase-brand": baseColors.blue[40],
-  "metabase-brand-hover": baseColors.blue[50],
+  "metabase-brand": "hsla(179.1, 64.2%, 20.8%, 1)",
+  "metabase-brand-hover": baseColors.brand[50],
   "saturated-blue": baseColors.ocean[40],
   "saturated-green": baseColors.palm[40],
   "saturated-purple": baseColors.octopus[40],
@@ -69,11 +69,11 @@ const getDeprecatedColors = (brand: BrandRamp) => ({
   "syntax-parameters": baseColors.mango[40],
   "text-tertiary": baseColors.orionAlphaInverse[40],
   "text-tertiary-inverse": baseColors.orionAlpha[40],
-  "text-hover": brand[30],
+  "text-hover": baseColors.orionAlphaInverse[90],
   "text-secondary-opaque": baseColors.orion[20],
-  warning: baseColors.dubloon[30],
-  "background-warning": baseColors.dubloon[90],
-  "background-warning-secondary": baseColors.dubloon[70],
+  warning: "hsla(45.15, 80.8%, 49.02%, 1)",
+  "background-warning": "hsla(45.1, 80.8%, 14.7%, 1)",
+  "background-warning-secondary": "hsla(45.1, 80.8%, 24.5%, 1)",
   info: baseColors.orion[50],
   "background-info": baseColors.orion[90],
   white: baseColors.orion[110],
@@ -82,8 +82,8 @@ const getDeprecatedColors = (brand: BrandRamp) => ({
   "border-stronger": baseColors.orionAlphaInverse[50],
   "border-subtle": baseColors.orionAlphaInverse[10],
   gold: baseColors.gold,
-  "upsell-primary": baseColors.ocean[30],
-  "upsell-secondary": baseColors.ocean[80],
+  "upsell-primary": "hsla(176, 19.1%, 53.9%, 1)",
+  "upsell-secondary": "hsla(178.6, 95.7%, 9%, 1)",
   "upsell-gem": baseColors.upsellGem,
 });
 
@@ -111,7 +111,7 @@ const getActualColors = (brand: BrandRamp) => ({
   "background_surface-error": baseColors.lobster[90],
   "background_surface-error-subtle": baseColors.lobster[90],
   "background_surface-hover":
-    "color-mix(in srgb, var(--mb-color-core-brand) 7%, transparent)",
+    "color-mix(in srgb, var(--mb-color-core-brand) 12%, transparent)",
   "background_surface-primary": baseColors.orion[95], // Matches background_page-primary
   "background_surface-primary-hover": baseColors.orionAlphaInverse[20],
   "background_surface-primary-inverse": baseColors.white, // Matches background_page-primary-inverse
@@ -127,8 +127,8 @@ const getActualColors = (brand: BrandRamp) => ({
   "background_surface-selected":
     "color-mix(in srgb, var(--mb-color-core-brand) 21%, transparent)",
   "background_surface-success": baseColors.palm[90],
-  "background_surface-warning": baseColors.dubloon[90],
-  "background_surface-warning-strong": baseColors.dubloon[70],
+  "background_surface-warning": "hsla(45.1, 80.8%, 14.7%, 1)",
+  "background_surface-warning-strong": "hsla(45.1, 80.8%, 24.5%, 1)",
   "border-brand": brand[80],
   "border-filter": baseColors.filter[80],
   "border-highlight": brand[30],
@@ -221,8 +221,8 @@ const getActualColors = (brand: BrandRamp) => ({
   "core-gold": baseColors.gold,
   "core-green-saturated": baseColors.palm[40],
   "core-info": baseColors.orion[50],
-  "core-metabase_brand": baseColors.blue[40],
-  "core-metabase_brand-hover": baseColors.blue[50],
+  "core-metabase_brand": "hsla(179.1, 64.2%, 20.8%, 1)",
+  "core-metabase_brand-hover": baseColors.brand[50],
   "core-purple-saturated": baseColors.octopus[40],
   "core-red-saturated": baseColors.lobster[40],
   "core-white": baseColors.orion[110],
@@ -234,16 +234,16 @@ const getActualColors = (brand: BrandRamp) => ({
   "feedback-positive": baseColors.palm[50],
   "feedback-positive-selected": baseColors.palm[40],
   "feedback-positive-strong": baseColors.palm[20],
-  "feedback-warning": baseColors.dubloon[30],
+  "feedback-warning": "hsla(45.15, 80.8%, 49.02%, 1)",
   "feedback-warning-strong": baseColors.dubloon[20],
   "illustration-secondary-brand": brand[80],
   "illustration-tertiary-brand": brand[90],
   "input-background": baseColors.orionAlphaInverse[10],
-  "input-focus": baseColors.blue[70],
+  "input-focus": baseColors.brand[30],
   "modal-overlay": baseColors.orionAlpha[70],
-  "navbar-admin": baseColors.octopus[80],
-  "navbar-admin-inverse": baseColors.octopus[60],
-  "navbar-admin-secondary": baseColors.octopus[60],
+  "navbar-admin": "hsla(178.6, 95.7%, 9%, 1)",
+  "navbar-admin-inverse": "hsla(177.7, 100%, 5.1%, 1)",
+  "navbar-admin-secondary": "hsla(179.1, 64.2%, 20.8%, 1)",
   "segmented_control-hover": baseColors.orionAlphaInverse[30],
   "segmented_control-pressed": baseColors.orionAlphaInverse[20],
   "segmented_control-selected": baseColors.orionAlphaInverse[20],

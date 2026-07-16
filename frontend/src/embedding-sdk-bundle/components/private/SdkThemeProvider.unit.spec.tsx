@@ -129,7 +129,14 @@ describe("SdkThemeProvider", () => {
 
     // Light defines `text-hover`/`text-brand` off brand[60]/[50], dark off brand[30]/[40]
     const LIGHT_OCEAN = { textHover: ocean[60], textBrand: ocean[50] };
-    const DARK_OCEAN = { textHover: ocean[30], textBrand: ocean[40] };
+    // Teal: the dark theme's `text-hover` is a fixed near-white (`orionAlphaInverse[90]`) rather than a brand tint,
+    // because the brand-tinted hover text lacked contrast on the dark background. See README-TEAL.md.
+    const TEAL_DARK_TEXT_HOVER = "hsla(0, 0%, 100%, 0.98)";
+    const DARK_OCEAN = {
+      textHover: TEAL_DARK_TEXT_HOVER,
+      textBrand: ocean[40],
+    };
+    const TRACKS_BRAND = expect.stringContaining("var(--mb-color-core-brand)");
 
     // We need to check what was actually injected into page, thus
     // direct query (unlike other tests that use SdkCssVariablesTester)
@@ -156,19 +163,22 @@ describe("SdkThemeProvider", () => {
     };
 
     it.each([
-      ["a V1 theme", { colors: { brand: "#DF75E9" } }],
-      ["a V2 theme", { version: 2 as const, colors: { brand: "#DF75E9" } }],
+      ["a V1 theme", { colors: { brand: "#DF75E9" } }, TRACKS_BRAND],
+      [
+        "a V2 theme",
+        { version: 2 as const, colors: { brand: "#DF75E9" } },
+        TRACKS_BRAND,
+      ],
       [
         "a dark V1 theme",
         { preset: "dark" as const, colors: { brand: "#DF75E9" } },
+        TEAL_DARK_TEXT_HOVER,
       ],
-    ])("tracks a brand color from %s", async (_name, theme) => {
+    ])("tracks a brand color from %s", async (_name, theme, textHover) => {
       const { getCssVariable } = await setup(theme);
 
       expect(getCssVariable("--mb-color-core-brand")).toBe("#DF75E9");
-      expect(getCssVariable("--mb-color-text-hover")).toContain(
-        "var(--mb-color-core-brand)",
-      );
+      expect(getCssVariable("--mb-color-text-hover")).toEqual(textHover);
       expect(getCssVariable("--mb-color-text-brand-hover")).toContain(
         "var(--mb-color-core-brand)",
       );
