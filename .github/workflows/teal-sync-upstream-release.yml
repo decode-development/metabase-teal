@@ -1,13 +1,21 @@
 name: Sync Upstream Metabase
 
-# Merges the latest upstream release tag into this fork's master daily,
-# keeping our Teal commits on top of a known-stable release.
-# - Clean merge: pushed to master automatically, release tag pushed to fork,
-#   which triggers teal-docker-publish.yml to build and publish a new image.
-# - Merge conflicts: branch pushed + PR opened for manual resolution.
+# Rebases this fork's Teal commits onto the latest upstream release tag daily,
+# keeping a clean linear history:  <upstream release> <- our commits on top.
 #
-# Requires a SYNC_TOKEN secret: a fine-grained PAT scoped to this repo
-# with Contents, Workflows, and Pull Requests read/write permissions.
+# - Clean rebase: master is rebased onto the new release and force-pushed
+#   automatically, then the release tag is pushed to the fork which triggers
+#   teal-docker-publish.yml to build and publish a branded image.
+# - Conflicts: an issue is opened with local resolution + landing instructions.
+#   Landing is a manual force-push because a rebasing fork rewrites master on
+#   every sync, so there is no cleanly mergeable PR (GitHub's merge would
+#   duplicate our commits). Conflicts can only involve files we also touch:
+#   the theme files and appearance/settings.clj.
+#
+# Requires a SYNC_TOKEN secret: a fine-grained PAT scoped to this repo with
+# Contents, Workflows, and Issues read/write permissions. Using a PAT (rather
+# than the default GITHUB_TOKEN) is what lets the tag push trigger the Docker
+# build workflow.
 
 on:
   schedule:
@@ -20,7 +28,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pull-requests: write
       issues: write
 
     steps:
@@ -54,31 +61,49 @@ jobs:
 
       - name: Check sync status
         id: status
+        env:
+          GH_TOKEN: ${{ secrets.SYNC_TOKEN }}
         run: |
           TAG="${{ steps.upstream.outputs.release_tag }}"
-          BRANCH="sync/upstream-$TAG"
 
           if git merge-base --is-ancestor "$TAG" HEAD; then
             echo "result=already-synced" >> "$GITHUB_OUTPUT"
             echo "$TAG is already in master — nothing to do."
-          elif git ls-remote --exit-code origin "refs/heads/$BRANCH" > /dev/null 2>&1; then
-            echo "result=pr-open" >> "$GITHUB_OUTPUT"
-            echo "Sync branch $BRANCH already exists — PR is likely open."
+          elif [[ $(gh issue list --state open --search "Sync upstream $TAG in:title" --json number --jq 'length') -gt 0 ]]; then
+            echo "result=conflict-open" >> "$GITHUB_OUTPUT"
+            echo "An open conflict issue already exists for $TAG — waiting on manual resolution."
           else
             echo "result=needs-sync" >> "$GITHUB_OUTPUT"
           fi
-          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
 
-      - name: Attempt merge
+      - name: Rebase Teal commits onto the new release
         if: steps.status.outputs.result == 'needs-sync'
-        id: merge
+        id: rebase
         run: |
           TAG="${{ steps.upstream.outputs.release_tag }}"
-          BRANCH="${{ steps.status.outputs.branch }}"
 
-          git checkout -b "$BRANCH"
+          # The upstream commit our Teal commits currently sit on. We must NOT use
+          # `git merge-base master "$TAG"`: upstream release lines diverge, so the
+          # merge-base is the point where the two lines split — replaying from there
+          # would drag every upstream commit since that split (hundreds) back onto
+          # the new release. Instead, anchor on our own stack: the "Apply Teal
+          # branding" commit is always the foundation of the Teal commits, so its
+          # parent is the upstream commit we sit on. Rebasing (OLD_BASE..master]
+          # therefore replays exactly the handful of Teal commits and nothing else.
+          TEAL_ROOT=$(git log --format='%H' -F --grep='Apply Teal branding' master | tail -1)
+          if [[ -z "$TEAL_ROOT" ]]; then
+            echo "::error::Could not locate the base Teal commit ('Apply Teal branding') on master."
+            exit 1
+          fi
+          OLD_BASE="${TEAL_ROOT}~1"
+          # Guard the force-push: only proceed if origin/master is where we left it.
+          ORIG_MASTER=$(git rev-parse master)
+          echo "old_base=$OLD_BASE"        >> "$GITHUB_OUTPUT"
+          echo "orig_master=$ORIG_MASTER"  >> "$GITHUB_OUTPUT"
+          echo "Rebasing $(git rev-list --count "$OLD_BASE"..master) Teal commit(s) from $OLD_BASE onto $TAG."
 
-          if git merge "$TAG" -m "Sync to upstream $TAG" --no-edit; then
+          git checkout -B sync-work master
+          if git rebase --onto "$TAG" "$OLD_BASE" sync-work; then
             echo "outcome=clean" >> "$GITHUB_OUTPUT"
           else
             {
@@ -86,88 +111,83 @@ jobs:
               git diff --name-only --diff-filter=U
               echo "EOF"
             } >> "$GITHUB_OUTPUT"
-
-            git add -A
-            git commit -m "Sync to upstream $TAG (conflicts — resolve before merging)"
+            git rebase --abort
             echo "outcome=conflicts" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Push to master (clean merge)
-        if: steps.status.outputs.result == 'needs-sync' && steps.merge.outputs.outcome == 'clean'
-        run: |
-          BRANCH="${{ steps.status.outputs.branch }}"
-          git checkout master
-          git merge "$BRANCH" --ff-only
-          git push origin master
-          echo "::notice::Synced ${{ steps.upstream.outputs.release_tag }} into master."
-
-      - name: Push release tag to fork
-        if: steps.status.outputs.result == 'needs-sync' && steps.merge.outputs.outcome == 'clean'
+      - name: Land on master (clean rebase)
+        if: steps.status.outputs.result == 'needs-sync' && steps.rebase.outputs.outcome == 'clean'
         run: |
           TAG="${{ steps.upstream.outputs.release_tag }}"
+          ORIG_MASTER="${{ steps.rebase.outputs.orig_master }}"
+
+          # Rewrite master to the rebased tip. --force-with-lease aborts if
+          # origin/master moved since we read it (e.g. a concurrent push).
+          git push --force-with-lease="master:$ORIG_MASTER" origin sync-work:master
+          echo "::notice::Rebased Teal commits onto $TAG and force-pushed master."
+
+          # Push the release tag to the fork -> triggers teal-docker-publish.yml,
+          # which builds from master (the branded tip).
           git push origin "$TAG"
           echo "::notice::Pushed $TAG to fork — Docker build will trigger automatically."
 
-      - name: Open conflict-resolution PR
-        if: steps.status.outputs.result == 'needs-sync' && steps.merge.outputs.outcome == 'conflicts'
+      - name: Open conflict-resolution issue
+        if: steps.status.outputs.result == 'needs-sync' && steps.rebase.outputs.outcome == 'conflicts'
         env:
           GH_TOKEN: ${{ secrets.SYNC_TOKEN }}
-          CONFLICTS: ${{ steps.merge.outputs.conflicts }}
+          CONFLICTS: ${{ steps.rebase.outputs.conflicts }}
+          OLD_BASE: ${{ steps.rebase.outputs.old_base }}
         run: |
           TAG="${{ steps.upstream.outputs.release_tag }}"
-          BRANCH="${{ steps.status.outputs.branch }}"
-
-          git push origin "$BRANCH"
 
           BODY_FILE=$(mktemp)
-          echo "## Upstream Sync — $TAG" >> "$BODY_FILE"
-          echo "" >> "$BODY_FILE"
-          echo "Merge conflicts were detected when merging upstream release \`$TAG\`. Manual resolution is required before this PR can be merged into \`master\`." >> "$BODY_FILE"
-          echo "" >> "$BODY_FILE"
-          echo "### Files with conflicts" >> "$BODY_FILE"
-          echo '```' >> "$BODY_FILE"
-          echo "$CONFLICTS" >> "$BODY_FILE"
-          echo '```' >> "$BODY_FILE"
-          echo "" >> "$BODY_FILE"
-          echo "### How to resolve" >> "$BODY_FILE"
-          echo '```bash' >> "$BODY_FILE"
-          echo "git fetch origin" >> "$BODY_FILE"
-          echo "git checkout $BRANCH" >> "$BODY_FILE"
-          echo "# Resolve the <<<<<<< markers in each conflicted file, then:" >> "$BODY_FILE"
-          echo "git add -A" >> "$BODY_FILE"
-          echo "git commit --amend --no-edit" >> "$BODY_FILE"
-          echo "git push --force-with-lease origin $BRANCH" >> "$BODY_FILE"
-          echo '```' >> "$BODY_FILE"
-          echo "" >> "$BODY_FILE"
-          echo "> **Tip:** The most likely files to conflict are the Teal branding files:" >> "$BODY_FILE"
-          echo "> \`frontend/src/metabase/ui/colors/constants/themes/light.ts\`" >> "$BODY_FILE"
-          echo "> \`frontend/src/metabase/ui/colors/constants/themes/dark.ts\`" >> "$BODY_FILE"
-          echo "> \`src/metabase/appearance/settings.clj\`" >> "$BODY_FILE"
+          {
+            echo "Rebasing our Teal commits onto upstream release \`$TAG\` hit conflicts. Because this fork keeps a linear history (our commits on top of upstream), the rebase and the force-push to \`master\` must be done locally — there is no mergeable PR."
+            echo ""
+            echo "### Files with conflicts"
+            echo '```'
+            echo "$CONFLICTS"
+            echo '```'
+            echo ""
+            echo "### Resolve and land"
+            echo '```bash'
+            echo "git fetch origin && git checkout master && git reset --hard origin/master"
+            echo "git remote add upstream https://github.com/metabase/metabase.git 2>/dev/null || true"
+            echo "git fetch upstream tag $TAG --no-tags"
+            echo ""
+            echo "# Replay our commits onto the new release:"
+            echo "git rebase --onto $TAG $OLD_BASE"
+            echo "# ...resolve the <<<<<<< markers, then: git add -A && git rebase --continue"
+            echo ""
+            echo "# Land it (rewrites master) and trigger the Docker build:"
+            echo "git push --force-with-lease origin HEAD:master"
+            echo "git push origin $TAG"
+            echo '```'
+            echo ""
+            echo "Close this issue once $TAG is on \`master\`."
+          } >> "$BODY_FILE"
 
-          gh api repos/$GITHUB_REPOSITORY/pulls \
-            -X POST \
-            -f title="Sync upstream $TAG (merge conflicts)" \
-            -f body="$(cat $BODY_FILE)" \
-            -f base=master \
-            -f head="$BRANCH"
+          gh issue create \
+            --title "Sync upstream $TAG (rebase conflicts)" \
+            --body-file "$BODY_FILE"
 
       - name: Summary
         if: always()
         run: |
           TAG="${{ steps.upstream.outputs.release_tag }}"
           RESULT="${{ steps.status.outputs.result }}"
-          OUTCOME="${{ steps.merge.outputs.outcome }}"
+          OUTCOME="${{ steps.rebase.outputs.outcome }}"
 
           if   [[ "$RESULT" == "already-synced" ]]; then
             echo "### Already up to date" >> "$GITHUB_STEP_SUMMARY"
             echo "$TAG is already in master — no action taken." >> "$GITHUB_STEP_SUMMARY"
-          elif [[ "$RESULT" == "pr-open" ]]; then
-            echo "### PR already open" >> "$GITHUB_STEP_SUMMARY"
-            echo "A sync branch already exists. Check open PRs." >> "$GITHUB_STEP_SUMMARY"
+          elif [[ "$RESULT" == "conflict-open" ]]; then
+            echo "### Awaiting conflict resolution" >> "$GITHUB_STEP_SUMMARY"
+            echo "An open issue already tracks conflicts for $TAG." >> "$GITHUB_STEP_SUMMARY"
           elif [[ "$OUTCOME" == "clean" ]]; then
             echo "### Synced automatically" >> "$GITHUB_STEP_SUMMARY"
-            echo "Upstream $TAG merged into master. Tag pushed — Docker build triggered." >> "$GITHUB_STEP_SUMMARY"
+            echo "Teal commits rebased onto $TAG and force-pushed to master. Tag pushed — Docker build triggered." >> "$GITHUB_STEP_SUMMARY"
           elif [[ "$OUTCOME" == "conflicts" ]]; then
-            echo "### Conflicts — PR opened" >> "$GITHUB_STEP_SUMMARY"
-            echo "Merge conflicts detected merging $TAG. A PR has been opened for manual resolution." >> "$GITHUB_STEP_SUMMARY"
+            echo "### Conflicts — issue opened" >> "$GITHUB_STEP_SUMMARY"
+            echo "Rebasing onto $TAG hit conflicts. An issue has been opened with resolution steps." >> "$GITHUB_STEP_SUMMARY"
           fi
