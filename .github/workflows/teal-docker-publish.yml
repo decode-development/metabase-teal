@@ -1,22 +1,22 @@
 name: Build and Publish Docker Image
 
+# Always builds from master — the branded, rebased tip. The upstream release
+# tag/commit itself carries no Teal branding, so we must NOT build from the tag.
+# The `version` is only the image label; the image content is master.
+#
 # Triggers:
 #   1. Push of an upstream release tag (e.g. v0.61.2) to this fork — done
-#      automatically by teal-sync-upstream-release.yml on a clean merge
-#      that includes a new release.
-#   2. A sync/upstream-* PR merged to master (conflict-resolution path).
-#   3. Manual dispatch — useful for rebuilding any version on demand.
+#      automatically by teal-sync-upstream-release.yml after a clean rebase.
+#   2. Manual dispatch — rebuild master, labelled with the given version.
 
 on:
   push:
     tags:
       - 'v[0-9]*'
-  pull_request:
-    types: [closed]
   workflow_dispatch:
     inputs:
       version:
-        description: "Upstream version tag to build (e.g. v0.61.2). Defaults to the current latest upstream release."
+        description: "Image version label (e.g. v0.61.2). Defaults to the current latest upstream release. Content is always built from master."
         required: false
 
 jobs:
@@ -50,21 +50,7 @@ jobs:
             VERSION="${{ github.ref_name }}"
             echo "should_build=true"  >> "$GITHUB_OUTPUT"
             echo "version=$VERSION"   >> "$GITHUB_OUTPUT"
-            echo "Tag push detected — building $VERSION"
-
-          elif [[ "$EVENT" == "pull_request" ]]; then
-            MERGED="${{ github.event.pull_request.merged }}"
-            BRANCH="${{ github.event.pull_request.head.ref }}"
-
-            if [[ "$MERGED" == "true" ]] && [[ "$BRANCH" =~ ^sync/upstream- ]]; then
-              VERSION="${BRANCH#sync/upstream-}"
-              echo "should_build=true"  >> "$GITHUB_OUTPUT"
-              echo "version=$VERSION"   >> "$GITHUB_OUTPUT"
-              echo "Upstream-sync PR merged — building $VERSION"
-            else
-              echo "should_build=false" >> "$GITHUB_OUTPUT"
-              echo "PR is not a merged upstream-sync — skipping."
-            fi
+            echo "Tag push detected — building master, labelled $VERSION"
           fi
 
   # ── Build the Docker image and push to GHCR ──
@@ -80,8 +66,10 @@ jobs:
       packages: write
 
     steps:
-      - name: Checkout
+      - name: Checkout master (the branded, rebased tip)
         uses: actions/checkout@v6
+        with:
+          ref: master
 
       # Docker image names must be lowercase; github.repository preserves case.
       - name: Normalise image name

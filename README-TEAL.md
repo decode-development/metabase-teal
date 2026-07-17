@@ -40,7 +40,13 @@ This fork makes cosmetic changes only and tracks upstream Metabase release-for-r
 
 ## Upstream
 
-This fork syncs to the latest upstream release tag daily, merging it into `master` so our Teal commits always sit on top of a known-stable release.
+This fork tracks upstream Metabase release-for-release. Rather than *merging* upstream into `master`, it **rebases** the handful of Teal commits on top of each new upstream release tag, so `master` stays a clean, linear history:
+
+```
+<upstream release tag>  ──►  Apply Teal branding  ──►  <automation commits>   (master)
+```
+
+This is a **rebasing fork**: every sync rewrites `master` — our commits get new SHAs on top of the newer upstream base — and force-pushes it. That is expected and normal for this repo. Do not "fix" the history by merging upstream in; that is what created the tangled history this layout replaced.
 
 ---
 
@@ -51,7 +57,7 @@ This fork syncs to the latest upstream release tag daily, merging it into `maste
 Metabase upstream ships ~100 GitHub Actions workflows. On a fork, all of them are inherited and enabled by default. The enforce workflow disables any workflow whose filename does not start with `teal-`, keeping only this fork's own automations active.
 
 **Triggers:**
-- Automatically on any push to `master` that touches `.github/workflows/` — catches new upstream workflows arriving via a sync merge
+- Automatically on any push to `master` that touches `.github/workflows/` — catches new upstream workflows arriving via a sync
 - Manual dispatch — use this for the **initial bulk disable** after first push
 
 **Initial setup:** after pushing this repository for the first time, run the workflow manually via:
@@ -59,18 +65,41 @@ Metabase upstream ships ~100 GitHub Actions workflows. On a fork, all of them ar
 
 ### Upstream Sync — `teal-sync-upstream-release.yml`
 
-Merges the latest upstream release tag into this fork's `master` daily, keeping Teal commits on top of a known-stable release.
+Daily, rebases this fork's Teal commits onto the latest upstream release tag (see [Upstream](#upstream)).
 
 | Outcome | Result |
 |---------|--------|
-| Clean merge | Pushed to `master` automatically; release tag pushed to fork, triggering a Docker build |
-| Merge conflicts | Branch `sync/upstream-YYYY-MM-DD` pushed, PR opened for manual resolution |
+| Clean rebase | `master` is rebased and **force-pushed** automatically; the release tag is pushed to the fork, triggering a Docker build |
+| Conflicts | The rebase is aborted and a **GitHub issue** is opened with step-by-step resolution instructions |
 
 **Trigger:** Daily at 06:00 UTC, and available as a manual trigger.
 
-**Requires:** A repository secret named `SYNC_TOKEN` — a fine-grained PAT scoped to this repo with Contents, Workflows, and Pull Requests read/write permissions.
+**Requires:** A repository secret named `SYNC_TOKEN` — a fine-grained PAT scoped to this repo with **Contents**, **Workflows**, and **Issues** read/write permissions. A PAT (rather than the default `GITHUB_TOKEN`) is required so the pushed release tag can trigger the Docker workflow.
 
-**Conflict resolution:** The three branding files above are the most likely to conflict. In each case, keep the Teal values — the upstream values for those specific keys will always be wrong for this fork.
+#### Why conflicts open an issue, not a PR
+
+This is non-standard, so it's worth stating plainly. Landing a sync **rewrites `master`** (rebase + force-push). GitHub's "Merge" button cannot do that: because our Teal commits are already on `master`, merging a rebased branch would *duplicate* them. There is therefore no mergeable PR for a sync — so conflicts reach you as an **issue**, and you land the resolution with a force-push (below) rather than a merge.
+
+#### Resolving a sync conflict
+
+The opened issue contains the exact commands for that specific release; the shape is always:
+
+```bash
+git fetch origin && git checkout master && git reset --hard origin/master
+git remote add upstream https://github.com/metabase/metabase.git 2>/dev/null || true
+git fetch upstream tag <TAG> --no-tags
+
+# Replay our commits onto the new release (<OLD_BASE> is printed in the issue):
+git rebase --onto <TAG> <OLD_BASE>
+# ...resolve the <<<<<<< markers, then:
+git add -A && git rebase --continue
+
+# Land it (rewrites master) and trigger the Docker build:
+git push --force-with-lease origin HEAD:master
+git push origin <TAG>
+```
+
+Only files this fork also modifies can conflict — in practice the three branding files above. **Keep the Teal values**; the upstream values for those keys will always be wrong for this fork. Close the issue once the tag is on `master`.
 
 ### Docker Publishing — `teal-docker-publish.yml`
 
@@ -82,8 +111,9 @@ docker pull ghcr.io/decode-development/metabase-teal:v0.61.2  # specific version
 ```
 
 **Triggers:**
-- Push of an upstream release tag to this fork (clean auto-merge path)
-- Merge of a `sync/upstream-*` PR into master (conflict-resolution path)
-- Manual dispatch — accepts an optional version tag, defaults to the current latest upstream release
+- Push of an upstream release tag to this fork (the clean-sync path)
+- Manual dispatch — accepts an optional version *label*, defaults to the current latest upstream release
+
+> **Note:** The image is always built from `master` (the branded, rebased tip), never from the upstream tag commit — the tag itself carries no Teal branding. The `version` input only labels the image; the content is always `master`.
 
 > **Note:** The build compiles the full frontend and backend from source and takes approximately 60–90 minutes on a standard GitHub-hosted runner. Layer caching (`type=gha`) reduces this on subsequent builds where the system setup layers are warm.
