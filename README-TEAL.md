@@ -30,6 +30,14 @@ Brand-tinted colours in the UI derive from a single `--mb-color-core-brand` valu
 The default UI font is **Poppins** (already bundled with Metabase upstream). Changed in:
 - `src/metabase/appearance/settings.clj` — `:default "Poppins"`
 
+### Dark-mode sidebar legibility
+
+Upstream colours the selected/hover sidebar item's text and icon with the brand colour itself. On our dark theme that is teal-on-teal (the background is a brand tint), so it fails contrast. We point the selected/hover **foreground** at the `text-selected` token (white in dark, neutral in light) while leaving the tinted background as-is. Patched in:
+- `frontend/src/metabase/nav/containers/MainNavbar/SidebarItems/SidebarItems.styled.tsx`
+- `frontend/src/metabase/nav/containers/MainNavbar/SidebarItems/SidebarLink.tsx`
+
+These are shared upstream components (not isolated Teal files), so they can conflict on a sync if upstream restyles the navbar — see [Resolving a sync conflict](#resolving-a-sync-conflict).
+
 ---
 
 ## Versioning
@@ -98,7 +106,7 @@ git add -A && git rebase --continue
 git push --force-with-lease origin HEAD:master
 ```
 
-Only files this fork also modifies can conflict — in practice the theme files above. **Keep the Teal values**; the upstream values for those keys will always be wrong for this fork. The next daily run (or a re-run) goes green once `<TAG>` is on `master`.
+Only files this fork also modifies can conflict — in practice the theme files and the two sidebar components listed under [Branding](#branding). **Keep the Teal values**; the upstream values for those keys will always be wrong for this fork. The next daily run (or a re-run) goes green once `<TAG>` is on `master`.
 
 ### Docker Publishing — `teal-docker-publish.yml`
 

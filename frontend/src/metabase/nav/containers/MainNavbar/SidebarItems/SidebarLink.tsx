@@ -76,7 +76,8 @@ function SidebarLink({
             name={iconProps.name}
             iconUrl={iconProps.iconUrl}
             size="1rem"
-            color="core-brand"
+            // Teal: match the selected foreground so it stays legible on the tint.
+            color={isSelected ? "text-selected" : "core-brand"}
           />
         ) : (
           <SidebarIcon {...iconProps} isSelected={isSelected} />
