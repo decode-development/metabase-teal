@@ -4,18 +4,19 @@ name: Sync Upstream Metabase
 # keeping a clean linear history:  <upstream release> <- our commits on top.
 #
 # - Clean rebase: master is rebased onto the new release and force-pushed
-#   automatically, then the release tag is pushed to the fork which triggers
-#   teal-docker-publish.yml to build and publish a branded image.
-# - Conflicts: an issue is opened with local resolution + landing instructions.
-#   Landing is a manual force-push because a rebasing fork rewrites master on
-#   every sync, so there is no cleanly mergeable PR (GitHub's merge would
-#   duplicate our commits). Conflicts can only involve files we also touch:
-#   the theme files and appearance/settings.clj.
+#   automatically. That push to master triggers teal-docker-publish.yml, which
+#   builds and publishes a branded image.
+# - Conflicts: the job fails loudly with a resolution runbook in its summary and
+#   an ::error:: annotation, so the failure notification surfaces it. Landing is
+#   a manual force-push because a rebasing fork rewrites master on every sync, so
+#   there is no cleanly mergeable PR (GitHub's merge would duplicate our commits).
+#   Conflicts can only involve files we also touch: the theme files and
+#   appearance/settings.clj.
 #
 # Requires a SYNC_TOKEN secret: a fine-grained PAT scoped to this repo with
-# Contents, Workflows, and Issues read/write permissions. Using a PAT (rather
-# than the default GITHUB_TOKEN) is what lets the tag push trigger the Docker
-# build workflow.
+# Contents and Workflows read/write permissions. Using a PAT (rather than the
+# default GITHUB_TOKEN) is what lets the force-push to master trigger the Docker
+# build workflow — pushes made with GITHUB_TOKEN do not trigger other workflows.
 
 on:
   schedule:
@@ -28,7 +29,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      issues: write
 
     steps:
       - name: Checkout fork
@@ -61,17 +61,12 @@ jobs:
 
       - name: Check sync status
         id: status
-        env:
-          GH_TOKEN: ${{ secrets.SYNC_TOKEN }}
         run: |
           TAG="${{ steps.upstream.outputs.release_tag }}"
 
           if git merge-base --is-ancestor "$TAG" HEAD; then
             echo "result=already-synced" >> "$GITHUB_OUTPUT"
             echo "$TAG is already in master — nothing to do."
-          elif [[ $(gh issue list --state open --search "Sync upstream $TAG in:title" --json number --jq 'length') -gt 0 ]]; then
-            echo "result=conflict-open" >> "$GITHUB_OUTPUT"
-            echo "An open conflict issue already exists for $TAG — waiting on manual resolution."
           else
             echo "result=needs-sync" >> "$GITHUB_OUTPUT"
           fi
@@ -122,34 +117,34 @@ jobs:
           ORIG_MASTER="${{ steps.rebase.outputs.orig_master }}"
 
           # Rewrite master to the rebased tip. --force-with-lease aborts if
-          # origin/master moved since we read it (e.g. a concurrent push).
+          # origin/master moved since we read it (e.g. a concurrent push). This
+          # push (made with the SYNC_TOKEN PAT) triggers teal-docker-publish.yml,
+          # which builds the branded image from master and labels it $TAG.
           git push --force-with-lease="master:$ORIG_MASTER" origin sync-work:master
-          echo "::notice::Rebased Teal commits onto $TAG and force-pushed master."
+          echo "::notice::Rebased Teal commits onto $TAG and force-pushed master — Docker build will trigger automatically."
 
-          # Push the release tag to the fork -> triggers teal-docker-publish.yml,
-          # which builds from master (the branded tip).
-          git push origin "$TAG"
-          echo "::notice::Pushed $TAG to fork — Docker build will trigger automatically."
-
-      - name: Open conflict-resolution issue
+      - name: Report conflicts and fail
         if: steps.status.outputs.result == 'needs-sync' && steps.rebase.outputs.outcome == 'conflicts'
         env:
-          GH_TOKEN: ${{ secrets.SYNC_TOKEN }}
           CONFLICTS: ${{ steps.rebase.outputs.conflicts }}
           OLD_BASE: ${{ steps.rebase.outputs.old_base }}
         run: |
           TAG="${{ steps.upstream.outputs.release_tag }}"
 
-          BODY_FILE=$(mktemp)
+          # Issues are disabled on this fork, so surface the conflict by failing
+          # the job: the runbook lands in the job summary and the ::error::
+          # annotation drives the failure notification.
           {
+            echo "### Sync conflict — manual rebase required"
+            echo ""
             echo "Rebasing our Teal commits onto upstream release \`$TAG\` hit conflicts. Because this fork keeps a linear history (our commits on top of upstream), the rebase and the force-push to \`master\` must be done locally — there is no mergeable PR."
             echo ""
-            echo "### Files with conflicts"
+            echo "#### Files with conflicts"
             echo '```'
             echo "$CONFLICTS"
             echo '```'
             echo ""
-            echo "### Resolve and land"
+            echo "#### Resolve and land"
             echo '```bash'
             echo "git fetch origin && git checkout master && git reset --hard origin/master"
             echo "git remote add upstream https://github.com/metabase/metabase.git 2>/dev/null || true"
@@ -159,20 +154,16 @@ jobs:
             echo "git rebase --onto $TAG $OLD_BASE"
             echo "# ...resolve the <<<<<<< markers, then: git add -A && git rebase --continue"
             echo ""
-            echo "# Land it (rewrites master) and trigger the Docker build:"
+            echo "# Land it (rewrites master) — the master push triggers the Docker build:"
             echo "git push --force-with-lease origin HEAD:master"
-            echo "git push origin $TAG"
             echo '```'
-            echo ""
-            echo "Close this issue once $TAG is on \`master\`."
-          } >> "$BODY_FILE"
+          } >> "$GITHUB_STEP_SUMMARY"
 
-          gh issue create \
-            --title "Sync upstream $TAG (rebase conflicts)" \
-            --body-file "$BODY_FILE"
+          echo "::error::Rebasing Teal commits onto $TAG hit conflicts — see the job summary for the resolution runbook."
+          exit 1
 
       - name: Summary
-        if: always()
+        if: always() && steps.rebase.outputs.outcome != 'conflicts'
         run: |
           TAG="${{ steps.upstream.outputs.release_tag }}"
           RESULT="${{ steps.status.outputs.result }}"
@@ -181,13 +172,7 @@ jobs:
           if   [[ "$RESULT" == "already-synced" ]]; then
             echo "### Already up to date" >> "$GITHUB_STEP_SUMMARY"
             echo "$TAG is already in master — no action taken." >> "$GITHUB_STEP_SUMMARY"
-          elif [[ "$RESULT" == "conflict-open" ]]; then
-            echo "### Awaiting conflict resolution" >> "$GITHUB_STEP_SUMMARY"
-            echo "An open issue already tracks conflicts for $TAG." >> "$GITHUB_STEP_SUMMARY"
           elif [[ "$OUTCOME" == "clean" ]]; then
             echo "### Synced automatically" >> "$GITHUB_STEP_SUMMARY"
-            echo "Teal commits rebased onto $TAG and force-pushed to master. Tag pushed — Docker build triggered." >> "$GITHUB_STEP_SUMMARY"
-          elif [[ "$OUTCOME" == "conflicts" ]]; then
-            echo "### Conflicts — issue opened" >> "$GITHUB_STEP_SUMMARY"
-            echo "Rebasing onto $TAG hit conflicts. An issue has been opened with resolution steps." >> "$GITHUB_STEP_SUMMARY"
+            echo "Teal commits rebased onto $TAG and force-pushed to master — Docker build triggered." >> "$GITHUB_STEP_SUMMARY"
           fi

@@ -5,19 +5,27 @@ name: Build and Publish Docker Image
 # The `version` is only the image label; the image content is master.
 #
 # Triggers:
-#   1. Push of an upstream release tag (e.g. v0.61.2) to this fork — done
-#      automatically by teal-sync-upstream-release.yml after a clean rebase.
+#   1. Push to master — done automatically by teal-sync-upstream-release.yml when
+#      it force-pushes the rebased branded tip after a clean sync. (We can't
+#      trigger on the release tag: GitHub only runs a workflow that exists at the
+#      pushed ref, and the upstream tag commit carries no Teal workflow files.)
 #   2. Manual dispatch — rebuild master, labelled with the given version.
 
 on:
   push:
-    tags:
-      - 'v[0-9]*'
+    branches:
+      - master
   workflow_dispatch:
     inputs:
       version:
         description: "Image version label (e.g. v0.61.2). Defaults to the current latest upstream release. Content is always built from master."
         required: false
+
+# One build at a time: a newer master (e.g. the next sync) cancels an in-flight
+# build, so we never publish a stale tip or waste a runner on a superseded one.
+concurrency:
+  group: teal-docker-publish
+  cancel-in-progress: true
 
 jobs:
   # ── Resolve whether this run should produce a build, and which version tag ──
@@ -46,11 +54,13 @@ jobs:
             echo "Manual dispatch — building $VERSION"
 
           elif [[ "$EVENT" == "push" ]]; then
-            # Triggered by a release tag pushed to this fork by the sync workflow
-            VERSION="${{ github.ref_name }}"
+            # master was updated (typically the sync workflow's force-push after a
+            # clean rebase). Label the image with the latest upstream release, since
+            # master tracks it release-for-release.
+            VERSION=$(gh api repos/metabase/metabase/releases/latest --jq '.tag_name')
             echo "should_build=true"  >> "$GITHUB_OUTPUT"
             echo "version=$VERSION"   >> "$GITHUB_OUTPUT"
-            echo "Tag push detected — building master, labelled $VERSION"
+            echo "master push detected — building master, labelled $VERSION"
           fi
 
   # ── Build the Docker image and push to GHCR ──
