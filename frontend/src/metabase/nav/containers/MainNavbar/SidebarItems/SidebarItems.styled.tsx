@@ -27,7 +27,11 @@ export const SidebarIcon = styled(
   ${(props) =>
     !props.color &&
     css`
-      color: var(--mb-color-core-brand);
+      /* Teal: selected/hover foreground uses text-selected (white in dark,
+         neutral in light) for contrast on the brand-tinted background. */
+      color: ${props.isSelected
+        ? "var(--mb-color-text-selected)"
+        : "var(--mb-color-core-brand)"};
     `}
 `;
 
@@ -36,12 +40,15 @@ export const ExpandToggleButton = styled(TreeNode.ExpandToggleButton)`
   color: var(--mb-color-core-brand);
 `;
 
+// Teal: foreground for the selected/hover state. text-selected resolves to
+// white in dark mode and to the neutral text colour in light mode, so it stays
+// legible on the brand-tinted background instead of being brand-on-brand.
 const activeColorCSS = css`
-  color: var(--mb-color-core-brand);
+  color: var(--mb-color-text-selected);
 `;
 
 function getTextColor(isSelected: boolean) {
-  return isSelected ? color("core-brand") : color("text-primary");
+  return isSelected ? color("text-selected") : color("text-primary");
 }
 
 type NodeRootProps = ComponentProps<typeof TreeNode.Root> & {
@@ -66,10 +73,11 @@ export const NodeRoot = styled(TreeNode.Root)<NodeRootProps>`
 
   &:hover {
     background-color: ${() => alpha("core-brand", 0.35)};
-    color: var(--mb-color-core-brand);
+    /* Teal: keep hover text legible on the tinted background (see activeColorCSS). */
+    color: var(--mb-color-text-selected);
 
     ${ExpandToggleButton} {
-      color: var(--mb-color-core-brand);
+      color: var(--mb-color-text-selected);
     }
   }
 
@@ -105,11 +113,12 @@ export const FullWidthButton = styled.button<{ isSelected: boolean }>`
   ${itemContentStyle}
   ${TreeNode.NameContainer} {
     font-weight: 700;
-    color: ${(props) => (props.isSelected ? color("core-brand") : "inherit")};
+    /* Teal: legible foreground on the brand-tinted selected/hover background. */
+    color: ${(props) => (props.isSelected ? color("text-selected") : "inherit")};
     text-align: start;
 
     &:hover {
-      color: var(--mb-color-core-brand);
+      color: var(--mb-color-text-selected);
     }
   }
 
