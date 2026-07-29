@@ -82,8 +82,8 @@
       (is (= 3 (count groups)))
       (is (every? (comp seq :ds) groups) "every fill group has at least one path")
       (is (= #{(Color. 0x5A 0x60 0x72)
-               (Color. 0x50 0x9E 0xE3)
-               (Color. 0xC2 0xDA 0xF0)}
+               (Color. 0x13 0x57 0x56)
+               (Color. 0xAC 0xC4 0xC4)}
              (set (map :color groups)))))))
 
 (deftest ^:parallel branding-svg-paths-drawable-test

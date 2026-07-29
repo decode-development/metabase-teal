@@ -1171,10 +1171,13 @@
 (def ^:private brand-logo-resource "fonts/pdf/metabase_logo_with_text.svg")
 
 (def ^:private brand-svg-colors
-  "Resolves the logo SVG's `var(--mb-color-logo-*)` CSS variables to the Metabase brand colors."
+  "Resolves the logo SVG's `var(--mb-color-logo-*)` CSS variables to the brand colors. `primary` is the fork's
+  teal (see `metabase.appearance.settings/default-application-color`); `secondary` is that teal at the same 35%
+  tint over white that upstream's `#C2DAF0` was of its `#509EE3`, so the logo keeps its visual weight. `text` is
+  neutral and unchanged. Keep in sync with the `<style>` block in the SVG asset itself."
   {"--mb-color-logo-text"      (Color. 0x5A 0x60 0x72)
-   "--mb-color-logo-primary"   (Color. 0x50 0x9E 0xE3)
-   "--mb-color-logo-secondary" (Color. 0xC2 0xDA 0xF0)})
+   "--mb-color-logo-primary"   (Color. 0x13 0x57 0x56)
+   "--mb-color-logo-secondary" (Color. 0xAC 0xC4 0xC4)})
 
 (def ^:private ^Color brand-text-color (Color. 0x5A 0x60 0x72))
 (def ^:private brand-logo-pt 13.0)

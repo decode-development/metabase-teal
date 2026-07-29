@@ -172,10 +172,17 @@ To change the chart colors:
 
 See [fonts](../configuring-metabase/fonts.md).")
 
+(def default-application-color
+  "Teal brand color, a.k.a. `#135756`. The canonical source for the fork's brand color on the backend — server
+  rendered output (emails, chart images, PDF attachments, the OAuth consent page) has no access to the frontend
+  theme in `frontend/src/metabase/ui/colors/constants/themes/`, so it resolves the brand color through here.
+  Keep in sync with the `brand` key in those theme files. See README-TEAL.md."
+  "#135756")
+
 (defn application-color
   "The primary color, a.k.a. brand color"
   []
-  (or (:brand (application-colors)) "#509EE3"))
+  (or (:brand (application-colors)) default-application-color))
 
 (defn secondary-chart-color
   "The first 'Additional chart color'"
