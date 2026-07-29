@@ -1,10 +1,11 @@
+import { STATIC_VIZ_FONT_NAME } from "metabase/static-viz/constants/fonts";
 import type { ColorGetter } from "metabase/ui/colors/types";
 
 import type { RowChartTheme } from "./types";
 
 export const getStaticChartTheme = (
   getColor: ColorGetter,
-  fontFamily = "Lato",
+  fontFamily = STATIC_VIZ_FONT_NAME,
 ): RowChartTheme => {
   return {
     axis: {

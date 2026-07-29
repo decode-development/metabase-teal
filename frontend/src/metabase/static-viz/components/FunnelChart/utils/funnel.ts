@@ -1,6 +1,7 @@
 import type { PolygonProps } from "@visx/shape/lib/shapes/Polygon";
 
 import { CHAR_SIZES_FONT_WEIGHT } from "metabase/static-viz/constants/char-sizes";
+import { STATIC_VIZ_FONT_NAME } from "metabase/static-viz/constants/fonts";
 import { measureTextWidth } from "metabase/static-viz/lib/text";
 import { formatPercent } from "metabase/utils/formatting";
 import type { TextWidthMeasurer } from "metabase/utils/measure-text";
@@ -52,7 +53,7 @@ export const getFormattedStep = (
   const fontStyle = {
     size: stepFontSize,
     weight: CHAR_SIZES_FONT_WEIGHT,
-    family: "Lato",
+    family: STATIC_VIZ_FONT_NAME,
   };
 
   const stepName = truncateText(
