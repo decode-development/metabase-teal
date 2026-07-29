@@ -1,10 +1,11 @@
 import type { ReactNode } from "react";
-import { match } from "ts-pattern";
+import { P, match } from "ts-pattern";
 import _ from "underscore";
 
 import type { SelectProps } from "metabase/ui";
 import type { FontStyle } from "metabase/utils/measure-text";
 import { measureTextWidth } from "metabase/utils/measure-text";
+import { isCalendarDayFrame } from "metabase/utils/schedule-frame";
 import type { ScheduleSettings } from "metabase-types/api";
 
 import { defaultDay, defaultHour } from "./constants";
@@ -95,12 +96,16 @@ export const getScheduleDefaults = (
       schedule_hour: defaultHour,
       schedule_minute: 0,
     }))
-    .with({ schedule_type: "monthly", schedule_frame: "mid" }, () => ({
-      schedule_day: null,
-      schedule_frame: "mid",
-      schedule_hour: defaultHour,
-      schedule_minute: 0,
-    }))
+    .with(
+      { schedule_type: "monthly", schedule_frame: P.when(isCalendarDayFrame) },
+      // a specific calendar day (the 15th, or any of days 1-28) has no weekday
+      ({ schedule_frame }) => ({
+        schedule_day: null,
+        schedule_frame,
+        schedule_hour: defaultHour,
+        schedule_minute: 0,
+      }),
+    )
     .with({ schedule_type: "monthly" }, () => ({
       schedule_frame: "first",
       schedule_hour: defaultHour,

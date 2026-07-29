@@ -191,7 +191,14 @@ export type ScheduleDayType =
   | "fri"
   | "sat";
 
-export type ScheduleFrameType = "first" | "mid" | "last";
+/**
+ * A monthly schedule pinned to a specific calendar day, e.g. `"day-5"` for the 5th. Only days 1-28 are valid, so
+ * the schedule fires in every month; the runtime helpers in `metabase/utils/schedule-frame` are the real gate.
+ * The 15th predates the others and uses `"mid"` instead.
+ */
+export type CalendarDayFrameType = `day-${number}`;
+
+export type ScheduleFrameType = "first" | "mid" | "last" | CalendarDayFrameType;
 
 export type ScheduleDisplayType = "cron/builder" | "cron/raw" | null;
 

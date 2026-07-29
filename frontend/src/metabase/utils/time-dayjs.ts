@@ -2,7 +2,9 @@ import type { Dayjs } from "dayjs";
 import dayjs from "dayjs";
 import { t } from "ttag";
 
+import { formatCalendarDayFrame } from "metabase/utils/schedule-frame";
 import MetabaseSettings from "metabase/utils/settings";
+import type { ScheduleFrameType } from "metabase-types/api";
 import type { DatetimeUnit } from "metabase-types/api/query";
 
 const DAYLIGHT_SAVINGS_CHANGE_TOLERANCE: Record<string, number> = {
@@ -118,7 +120,7 @@ export function getRelativeTime(timestamp: string) {
   return dayjs(timestamp).fromNow();
 }
 
-export function formatFrame(frame: "first" | "last" | "mid") {
+export function formatFrame(frame: ScheduleFrameType) {
   switch (frame) {
     case "first":
       return t`first`;
@@ -127,7 +129,8 @@ export function formatFrame(frame: "first" | "last" | "mid") {
     case "mid":
       return t`15th (Midpoint)`;
     default:
-      return frame;
+      // a specific calendar day, e.g. "day-5" -> "5th"
+      return formatCalendarDayFrame(frame) ?? frame;
   }
 }
 

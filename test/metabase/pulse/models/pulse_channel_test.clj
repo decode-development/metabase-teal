@@ -99,6 +99,34 @@
         (is (= expected
                (apply pulse-channel/valid-schedule? args)))))))
 
+;;; Monthly schedules pinned to a specific calendar day, e.g. "the 5th".
+
+(deftest calendar-day-schedule-frame?-test
+  (doseq [[x expected] {:day-1   true
+                        :day-5   true
+                        :day-15  true
+                        :day-28  true
+                        ;; days that don't occur in every month
+                        :day-29  false
+                        :day-31  false
+                        :day-0   false
+                        ;; frames arrive as keywords, same as :first/:mid/:last
+                        "day-5"  false
+                        :day-abc false}]
+    (testing x
+      (is (= expected
+             (pulse-channel/schedule-frame? x))))))
+
+(deftest calendar-day-valid-schedule?-test
+  (doseq [[args expected] {[:monthly 12 nil :day-5]     true
+                           [:monthly 12 nil :day-28]    true
+                           ;; a specific calendar day has no weekday, so pairing them is meaningless
+                           [:monthly 12 "mon" :day-5]   false
+                           [:monthly 12 nil :day-29]    false}]
+    (testing (cons 'valid-schedule? args)
+      (is (= expected
+             (apply pulse-channel/valid-schedule? args))))))
+
 (deftest channel-type?-test
   (doseq [[x expected] {nil     false
                         "abc"   false
@@ -238,6 +266,23 @@
                    :schedule_day   nil
                    :schedule_frame :mid
                    :recipients     [{:email "foo@bar.com"} {:id (mt/user->id :rasta)}]})))))
+      (testing "monthly schedules can be pinned to a specific calendar day"
+        (mt/with-temp [:model/PulseChannel {channel-id :id} {:pulse_id pulse-id}]
+          (is (= (merge default-pulse-channel
+                        {:recipients     [{:email "foo@bar.com"}]
+                         :channel_type   :email
+                         :schedule_type  :monthly
+                         :schedule_frame :day-5
+                         :schedule_hour  8})
+                 (update-channel-then-select!
+                  {:id             channel-id
+                   :enabled        true
+                   :channel_type   :email
+                   :schedule_type  :monthly
+                   :schedule_hour  8
+                   :schedule_day   nil
+                   :schedule_frame :day-5
+                   :recipients     [{:email "foo@bar.com"}]})))))
       (testing "weekly schedule should have a day in it, show that we can get full users"
         (mt/with-temp [:model/PulseChannel {channel-id :id} {:pulse_id pulse-id}]
           (is (= (merge default-pulse-channel
