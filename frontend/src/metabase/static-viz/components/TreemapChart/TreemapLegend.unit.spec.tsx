@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 
+import { STATIC_VIZ_FONT_NAME } from "metabase/static-viz/constants/fonts";
 import { measureTextWidth } from "metabase/static-viz/lib/text";
 import type { RenderingContext } from "metabase/viz-core";
 
@@ -12,7 +13,7 @@ const renderingContext = {
   measureText: (text: string, style: { size: number; weight: number }) =>
     measureTextWidth(text, style.size, style.weight),
   measureTextHeight: () => 16,
-  fontFamily: "Lato",
+  fontFamily: STATIC_VIZ_FONT_NAME,
   // Unjustified type cast. FIXME
   theme: {} as RenderingContext["theme"],
 } as RenderingContext;
