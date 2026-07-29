@@ -2,6 +2,7 @@ import { Group } from "@visx/group";
 import { Pie } from "@visx/shape";
 import type { PieArcDatum } from "@visx/shape/lib/shapes/Pie";
 
+import { STATIC_VIZ_FONT_NAME } from "metabase/static-viz/constants/fonts";
 import type { ColorGetter } from "metabase/ui/colors/types";
 
 import Watermark from "../../watermark.svg?component";
@@ -74,7 +75,7 @@ export default function Gauge({
       xmlns="http://www.w3.org/2000/svg"
       width={CHART_WIDTH}
       height={CHART_HEIGHT}
-      fontFamily="Lato"
+      fontFamily={STATIC_VIZ_FONT_NAME}
     >
       <g transform={`translate(${CHART_WIDTH / 2}, ${CHART_HEIGHT / 2})`}>
         {/* `transform-origin: center` doesn't work when rendered with Batik.
