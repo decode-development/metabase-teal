@@ -187,6 +187,18 @@
     (-> (channel.render/make-image-bundle :attachment png-bytes)
         (channel.render/image-bundle->attachment))))
 
+(defn- resolve-logo
+  "Resolve `context.application_logo_url` for email delivery: the logo we ship becomes an inline (`cid:`)
+  attachment rasterized in the brand color, as do uploaded data-URI logos; anything else stays a URL. Returns
+  `[notification-payload attachments]`, where `attachments` is empty unless an inline image is needed."
+  [notification-payload]
+  (let [logo (email.logo/logo-bundle (get-in notification-payload [:context :application_logo_url]))]
+    [(cond-> notification-payload
+       (:image-src logo) (assoc-in [:context :application_logo_url] (:image-src logo)))
+     (if-let [attachment (:attachment logo)]
+       [(make-message-attachment (first attachment))]
+       [])]))
+
 (defn- construct-email
   ([subject recipients message]
    (construct-email subject recipients message nil))
@@ -242,6 +254,8 @@
                 notification_card
                 subscriptions
                 card]}     payload
+        [notification-payload
+         logo-attachments] (resolve-logo notification-payload)
         template           (or template (payload-type->default-template payload_type))
         timezone           (channel.render/defaulted-timezone card)
         rendered-card      (render-part timezone card_part {:channel.render/include-title? true
@@ -253,7 +267,7 @@
                                     [(assoc notification_card :include_csv true :format_rows true)]
                                     [card_part]))
                             creator_id)
-        attachments        (concat [icon-attachment] card-attachments result-attachments)
+        attachments        (concat [icon-attachment] logo-attachments card-attachments result-attachments)
         html-content       (html (:content rendered-card))
         goal               (ui-logic/find-goal-value payload)
         message-context-fn (fn [non-user-email]
@@ -311,6 +325,8 @@
                 dashboard_subscription
                 parameters
                 dashboard]} payload
+        [notification-payload
+         logo-attachments]  (resolve-logo notification-payload)
         template            (or template (payload-type->default-template payload_type))
         timezone            (some->> dashboard_parts (some :card) channel.render/defaulted-timezone)
         ;; We want to walk dashboard_parts once and not retain Hiccup structures in memory to reduce memory water mark
@@ -345,7 +361,7 @@
         card-attachments    (map make-message-attachment merged-attachments)
         pdf-attachment      (when include_pdf
                               (dashboard-pdf-attachment (:id dashboard) (:name dashboard) creator_id parameters dashboard_parts))
-        attachments         (cond-> (into [icon-attachment] result-attachments)
+        attachments         (cond-> (into (into [icon-attachment] logo-attachments) result-attachments)
                               (not attachment_only) (concat card-attachments)
                               pdf-attachment        (concat [pdf-attachment]))
         dashboard-content   (if-not attachment_only
@@ -402,15 +418,7 @@
                                      [:template ::models.channel/ChannelTemplate]
                                      [:recipients [:sequential ::models.notification/NotificationRecipient]]]]
   (assert (some? template) "Template is required for system event notifications")
-  (let [logo-url              (get-in notification-payload [:context :application_logo_url])
-        logo                  (email.logo/logo-bundle logo-url)
-        ;; Update context with the processed logo URL (cid: reference if data URI was converted)
-        updated-payload       (if (:image-src logo)
-                                (assoc-in notification-payload [:context :application_logo_url] (:image-src logo))
-                                notification-payload)
-        logo-attachment       (when (:attachment logo)
-                                [(make-message-attachment (first (:attachment logo)))])
-        attachments           logo-attachment]
+  (let [[updated-payload attachments] (resolve-logo notification-payload)]
     [(construct-email (channel.params/substitute-params (-> template :details :subject) updated-payload)
                       (notification-recipients->emails recipients updated-payload)
                       (render-message-body template updated-payload attachments)

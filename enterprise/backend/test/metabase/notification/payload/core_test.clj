@@ -20,7 +20,8 @@
                                :custom      {}}
                 :context     {:application_name     "Metabase Test"
                               :application_color    "#509EE3"
-                              :application_logo_url "http://static.metabase.com/email_logo.png"
+                              ;; the raw setting value; the email channel resolves it to an inline `cid:` image
+                              :application_logo_url "app/assets/img/logo.svg"
                               :include_branding     false
                               :site_name            "Metabase Test"
                               :site_url             "https://metabase.com"

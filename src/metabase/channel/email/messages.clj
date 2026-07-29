@@ -45,8 +45,8 @@
   (email.logo/logo-bundle (appearance/application-logo-url)))
 
 (defn logo-url
-  "Return the URL for the application logo. If the logo is the default, return a URL to the Metabase logo.
-   For data URIs, returns the cid: reference (requires logo-attachment to be included in email)."
+  "Return the URL for the application logo. For the default logo and for data URIs, returns the cid: reference
+   (requires logo-attachment to be included in the email)."
   []
   (:image-src (logo-bundle)))
 
@@ -92,18 +92,27 @@
    :content-type "image/png"
    :content      url})
 
-(defn- send-email-with-logo!
-  "Send an email, including the logo as an attachment if it's a data URI.
-   Takes the same args as email/send-message! but handles logo attachments automatically."
+(defn- with-logo-attachment
+  "Rewrite html email args to carry the logo as an inline attachment, when the logo is an embedded image (the
+   default brand-colored logo, or an uploaded data URI) rather than a URL. A no-op otherwise.
+
+   Any send path whose template shows the logo must go through this, or the `cid:` reference in the template
+   resolves to nothing and the recipient sees a broken image."
   [{:keys [message] :as email-args}]
   (if-let [attachment (logo-attachment)]
-    (email/send-message!
-     (assoc email-args
-            :message-type :attachments
-            :message      (vec (cons {:type    "text/html; charset=utf-8"
-                                      :content message}
-                                     [(make-message-attachment (first attachment))]))))
-    (email/send-message! email-args)))
+    (assoc email-args
+           :message-type :attachments
+           :message      (vec (cons {:type    "text/html; charset=utf-8"
+                                     :content message}
+                                    [(make-message-attachment (first attachment))])))
+    email-args))
+
+(defn- send-email-with-logo!
+  "Send an email, including the logo as an attachment when it is an inline image (the default brand-colored logo,
+   or an uploaded data URI) rather than a URL.
+   Takes the same args as email/send-message! but handles logo attachments automatically."
+  [email-args]
+  (email/send-message! (with-logo-attachment email-args)))
 
 ;;; ### Public Interface
 
@@ -144,15 +153,15 @@
 (defn send-mfa-login-code-email!
   "Send an email containing a one-time sign-in `code` to `email`.
   Uses [[metabase.channel.email/send-message-or-throw!]] directly so that SMTP delivery failures
-  propagate to the caller — the /send-email-otp endpoint returns 500 on failure. Because of this,
-  the data-URI logo-attachment handling in [[send-email-with-logo!]] is skipped."
+  propagate to the caller — the /send-email-otp endpoint returns 500 on failure."
   [email code]
   {:pre [(u/email? email) (string? code)]}
   (email/send-message-or-throw!
-   {:subject      (trs "[{0}] Your sign-in code" (app-name-trs))
-    :recipients   [email]
-    :message-type :html
-    :message      (channel.template/render "mfa_login_code" (assoc (common-context) :logoHeader true :code code))}))
+   (with-logo-attachment
+     {:subject      (trs "[{0}] Your sign-in code" (app-name-trs))
+      :recipients   [email]
+      :message-type :html
+      :message      (channel.template/render "mfa_login_code" (assoc (common-context) :logoHeader true :code code))})))
 
 ;;; ---- end MFA notification emails ----
 

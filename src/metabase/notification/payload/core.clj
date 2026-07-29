@@ -104,15 +104,6 @@
                  [:subscriptions     [:sequential ::models.notification/NotificationSubscription]]]]]]
     [:notification/testing   :map]]])
 
-(defn- logo-url
-  "Return the URL for the application logo. If the logo is the default, return a URL to the Metabase logo.
-   For data URIs, returns the raw data URI - the email channel will convert it to an attachment."
-  []
-  (let [url (appearance/application-logo-url)]
-    (if (= url "app/assets/img/logo.svg")
-      "http://static.metabase.com/email_logo.png"
-      url)))
-
 (defn- button-style
   "Return a CSS style string for a button with the given color."
   [color]
@@ -133,7 +124,9 @@
   ;; DO NOT delete or rename these fields, they are used in the notification templates
   {:application_name     (appearance/application-name)
    :application_color    (appearance/application-color)
-   :application_logo_url (logo-url)
+   ;; Left as the raw setting value; the email channel resolves it to a `cid:` reference for the default logo
+   ;; (rasterized in the brand color) and for data URIs. See [[metabase.channel.email.logo/logo-bundle]].
+   :application_logo_url (appearance/application-logo-url)
    :include_branding     (not (premium-features/enable-whitelabeling?))
    :site_name            (appearance/site-name)
    :site_url             (system/site-url)
