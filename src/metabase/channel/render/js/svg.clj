@@ -4,6 +4,7 @@
   GraalVM context. This namespace has wrapper functions that build the argument map, call the corresponding
   protocol function, and rasterize the resulting SVG to PNG bytes via Batik."
   (:require
+   [clojure.java.io :as io]
    [clojure.string :as str]
    [metabase.appearance.core :as appearance]
    [metabase.channel.render.image-buffer :as image-buffer]
@@ -217,4 +218,41 @@
     (binding [*svg-render-width*       (float 33)
               *svg-render-height*      (float 33)
               *svg-background-color*   nil]
+      (svg-string->bytes svg-string))))
+
+(def ^:private default-logo-resource "frontend_client/app/assets/img/logo.svg")
+
+(def ^:private logo-render-height
+  "Rasterize the logo at 3x the largest size any email template displays it at (`max-height: 46px`), so it stays
+  crisp on high-DPI screens. Width follows from the SVG's aspect ratio."
+  138)
+
+(defn- svg-aspect-ratio
+  "Width/height of `svg-string` according to its `viewBox`, or 1.0 if it has none. The logo's `width`/`height`
+  attributes say 32x32 while its `viewBox` is 212x256, so rasterizing to the attribute aspect would letterbox
+  the artwork inside a square."
+  [svg-string]
+  (or (when-let [[_ w h] (re-find #"viewBox=\"[\d.]+\s+[\d.]+\s+([\d.]+)\s+([\d.]+)\"" svg-string)]
+        (let [w (parse-double w)
+              h (parse-double h)]
+          (when (and w h (pos? h))
+            (/ w h))))
+      1.0))
+
+(defn branded-logo
+  "Render the default application logo as PNG bytes, tinted `color`. The logo SVG paints itself with
+  `currentColor`, which has no meaning once rasterized, so it is substituted for an explicit color -- the same
+  approach [[metabase.oauth-server.consent-page]] uses to brand the logo on the consent screen.
+
+  Used for email, where the logo has to be an inline image rather than an SVG the client will render."
+  [color]
+  (let [svg-string (-> (io/resource default-logo-resource)
+                       slurp
+                       (str/replace "currentColor" color))]
+    (binding [;; `*chart-size*` takes precedence over the render width/height, so clear it: the logo's size is
+              ;; its own concern, not that of whatever chart may be rendering around it.
+              *chart-size*           nil
+              *svg-render-width*     (float (* logo-render-height (svg-aspect-ratio svg-string)))
+              *svg-render-height*    (float logo-render-height)
+              *svg-background-color* nil]
       (svg-string->bytes svg-string))))
