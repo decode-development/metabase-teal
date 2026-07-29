@@ -17,6 +17,7 @@
   custom-formatting
   custom-homepage
   custom-homepage-dashboard
+  default-application-color
   example-dashboard-id
   help-link
   help-link-custom-destination

@@ -10,8 +10,11 @@
       color: #616D75;
       text-decoration: none;
     }
+    {{!-- Teal brand color hardcoded: this partial is shared by templates rendered from
+          channel.email.messages (camelCase context, `applicationColor`) and from the notification system
+          (`context.application_color`), so there is no one context key available to both. --}}
     .pulse .container .title-link:hover {
-      color: #509EE3;
+      color: #135756;
     }
     .card-container {
       margin: auto;

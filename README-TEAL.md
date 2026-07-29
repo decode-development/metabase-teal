@@ -30,6 +30,14 @@ Brand-tinted colours in the UI derive from a single `--mb-color-core-brand` valu
 The default UI font is **Poppins** (already bundled with Metabase upstream). Changed in:
 - `src/metabase/appearance/settings.clj` — `:default "Poppins"`
 
+### Emails and server-rendered output
+
+The theme files above only feed the browser. Emails, the chart images inside them, and the PDF attachment are rendered on the server, which cannot read the frontend theme — so each resolves branding through its own path. Note that `application-colors` is gated behind the `whitelabel` premium feature, so on an OSS build the **defaults** are the only lever.
+
+**Brand colour.** `metabase.appearance.settings/default-application-color` is the single backend source of the teal, and `application-color` falls back to it. That one value reaches email links, section headers, minibars, the dashboard/bell icon PNG, button styles and the OAuth consent page. Keep it in sync with the `brand` key in the theme files.
+
+The PDF attachment's "Made with Metabase" badge is recoloured in `src/metabase/channel/render/pdf.clj` (`brand-svg-colors`) and `resources/fonts/pdf/metabase_logo_with_text.svg`. Its secondary tint `#ACC4C4` is the teal at the same 35%-over-white ratio that upstream's `#C2DAF0` was of its `#509EE3`, so the logo keeps its visual weight.
+
 ### Dark-mode sidebar legibility
 
 Upstream colours the selected/hover sidebar item's text and icon with the brand colour itself. On our dark theme that is teal-on-teal (the background is a brand tint), so it fails contrast. We point the selected/hover **foreground** at the `text-selected` token (white in dark, neutral in light) while leaving the tinted background as-is. Patched in:
@@ -145,7 +153,7 @@ git add -A && git rebase --continue
 git push --force-with-lease origin HEAD:master
 ```
 
-Only files this fork also modifies can conflict — in practice the theme files and sidebar components listed under [Branding](#branding), plus the scheduling files listed under [Functional changes](#functional-changes). For branding, **keep the Teal values**; the upstream values for those keys will always be wrong for this fork. For the scheduling patch, keep both sides: the change is additive, so upstream's logic should survive with the `day-N` handling layered back on top — and note the rollback warning in that section before considering dropping the commit. The next daily run (or a re-run) goes green once `<TAG>` is on `master`.
+Only files this fork also modifies can conflict — in practice the theme files, sidebar components, and email/render files listed under [Branding](#branding), plus the scheduling files listed under [Functional changes](#functional-changes). For branding, **keep the Teal values**; the upstream values for those keys will always be wrong for this fork. For the scheduling patch, keep both sides: the change is additive, so upstream's logic should survive with the `day-N` handling layered back on top — and note the rollback warning in that section before considering dropping the commit. The next daily run (or a re-run) goes green once `<TAG>` is on `master`.
 
 ### Docker Publishing — `teal-docker-publish.yml`
 

@@ -14,6 +14,7 @@ import {
 } from "metabase/static-viz/components/FunnelChart/utils/funnel";
 import { Text } from "metabase/static-viz/components/Text";
 import { measureTextHeight } from "metabase/static-viz/lib/text";
+import { colors } from "metabase/ui/colors/colors";
 import {
   calculateFunnelSteps,
   calculateStepOpacity,
@@ -35,8 +36,11 @@ const layout = {
   colors: {
     // eslint-disable-next-line metabase/no-color-literals
     textMedium: "#949aab",
-    // eslint-disable-next-line metabase/no-color-literals
-    brand: "#509ee3",
+    // `settings.colors` only carries whitelabel overrides, which are empty
+    // unless an admin sets them, so this default is what actually renders.
+    // Read it from the palette rather than hardcoding, or the funnel is the
+    // one chart in an email that ignores the brand color.
+    brand: colors.brand,
     // eslint-disable-next-line metabase/no-color-literals
     border: "#f0f0f0",
   },
