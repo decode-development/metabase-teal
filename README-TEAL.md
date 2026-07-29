@@ -2,7 +2,7 @@
 
 A custom-branded fork of [Metabase](https://github.com/metabase/metabase) (OSS edition), maintained under the terms of the [AGPL v3 license](LICENSE-AGPL.txt).
 
-No functional changes are made to the core Metabase product. All upstream features, connectors, and APIs are preserved as-is.
+Changes are limited to branding plus one additive scheduling option (see [Functional changes](#functional-changes)). All upstream features, connectors, and APIs are preserved as-is — nothing upstream offers is removed or altered.
 
 ---
 
@@ -40,9 +40,48 @@ These are shared upstream components (not isolated Teal files), so they can conf
 
 ---
 
+## Functional changes
+
+### Monthly subscriptions on any day of the month
+
+Upstream's monthly schedule picker offers only three days of the month: **First**, **15th (Midpoint)**, and **Last**. We sync data and refresh dashboards on the 3rd of the month and notify clients a couple of days later, so we need to pick an arbitrary day. The picker now offers **every day from the 1st to the 28th**.
+
+Days 29–31 are deliberately excluded: they don't occur in every month, so a subscription set to the 30th would silently skip February. Capping at 28 means a monthly subscription always fires.
+
+**Wire format.** The existing `pulse_channel.schedule_frame` column carries a new family of values, `day-1` … `day-28`, alongside the upstream `first` / `mid` / `last`:
+
+| `schedule_frame` | Meaning | Cron day-of-month |
+|---|---|---|
+| `first` | 1st, or "first \<weekday\>" when `schedule_day` is set | `1` or `<dow>#1` |
+| `last` | Last day, or "last \<weekday\>" when `schedule_day` is set | `L` or `<dow>L` |
+| `mid` | 15th | `15` |
+| `day-5` | 5th | `5` |
+
+`day-N` frames are mutually exclusive with `schedule_day` — a specific calendar day has no weekday — so selecting one hides the weekday dropdown, exactly as `mid` already did. The 15th keeps the `mid` value rather than gaining a duplicate `day-15`, so existing subscriptions are untouched. No database migration is needed: the column is already `varchar(32)`.
+
+**Modified files:**
+- `src/metabase/util/cron.clj` — the `schedule_frame` schema, and both directions of the cron conversion
+- `src/metabase/pulse/models/pulse_channel.clj` — the valid-frame set and `valid-schedule?`
+- `frontend/src/metabase/utils/schedule-frame.ts` — **new**, all of the shared frame logic
+- `frontend/src/metabase-types/api/settings.ts` — `ScheduleFrameType`
+- `frontend/src/metabase/common/components/SchedulePicker/SchedulePicker.tsx` — the subscription picker
+- `frontend/src/metabase/utils/time-dayjs.ts` — `formatFrame`, the shared schedule label
+- `frontend/src/metabase/dashboard/components/DashboardSubscriptionsSidebar/PulsesListSidebar.tsx` — the summary sentence
+- `frontend/src/metabase/common/components/Schedule/{cron.ts,utils.tsx,Schedule.tsx}` — the newer picker used by question alerts and transform jobs. It deliberately does **not** offer the new days, but it now converts them to and from cron correctly instead of silently rewriting them. Its day dropdown would render blank for a `day-N` value, which is unreachable through the UI — only a hand-written cron expression could produce one.
+
+Day labels are localized ordinals produced by dayjs' `Do` token, so they follow the user's locale. Locales whose dayjs build has no ordinal form fall back to the bare number.
+
+> **⚠️ Before rolling back to an unpatched build**, clear the new values first:
+> ```sql
+> UPDATE pulse_channel SET schedule_frame = 'first' WHERE schedule_frame LIKE 'day-%';
+> ```
+> Unpatched code rejects `day-N` as an invalid frame while building Quartz triggers at startup, and that loop is not error-isolated — a single unrecognised row stops triggers being created for **all** dashboard subscriptions. This also applies if a sync conflict is ever resolved by dropping this commit.
+
+---
+
 ## Versioning
 
-This fork makes cosmetic changes only and tracks upstream Metabase release-for-release. It uses upstream version tags directly (e.g. `v0.61.2`) — there is no independent versioning scheme. Docker images are published under the same tag, so the image version always corresponds exactly to the underlying Metabase version.
+This fork tracks upstream Metabase release-for-release. It uses upstream version tags directly (e.g. `v0.61.2`) — there is no independent versioning scheme. Docker images are published under the same tag, so the image version always corresponds exactly to the underlying Metabase version.
 
 ---
 
@@ -106,7 +145,7 @@ git add -A && git rebase --continue
 git push --force-with-lease origin HEAD:master
 ```
 
-Only files this fork also modifies can conflict — in practice the theme files and the two sidebar components listed under [Branding](#branding). **Keep the Teal values**; the upstream values for those keys will always be wrong for this fork. The next daily run (or a re-run) goes green once `<TAG>` is on `master`.
+Only files this fork also modifies can conflict — in practice the theme files and sidebar components listed under [Branding](#branding), plus the scheduling files listed under [Functional changes](#functional-changes). For branding, **keep the Teal values**; the upstream values for those keys will always be wrong for this fork. For the scheduling patch, keep both sides: the change is additive, so upstream's logic should survive with the `day-N` handling layered back on top — and note the rollback warning in that section before considering dropping the commit. The next daily run (or a re-run) goes green once `<TAG>` is on `master`.
 
 ### Docker Publishing — `teal-docker-publish.yml`
 

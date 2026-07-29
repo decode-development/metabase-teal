@@ -41,13 +41,23 @@
 (mr/def ::CronMinute
   [:int {:min 0, :max 59}])
 
+(def calendar-day-frames
+  "Schedule frames that pin a monthly schedule to a specific calendar day, e.g. `\"day-7\"` for the 7th. Stops at 28
+  so the schedule fires in every month, February included. `\"first\"`, `\"mid\"` and `\"last\"` are the older
+  spellings of the 1st, the 15th, and the last day of the month; `\"day-15\"` is accepted as an alias of `\"mid\"`."
+  (mapv #(str "day-" %) (range 1 29)))
+
+(def ^:private calendar-day-frame?
+  "Is `frame` a schedule frame naming a specific calendar day, e.g. `\"day-7\"`?"
+  (set calendar-day-frames))
+
 (mr/def ::ScheduleMap
   (mu/with-api-error-message
    [:map
     {:error/message "Expanded schedule map"}
     [:schedule_type                    [:enum "hourly" "daily" "weekly" "monthly"]]
     [:schedule_day    {:optional true} [:maybe [:enum "sun" "mon" "tue" "wed" "thu" "fri" "sat"]]]
-    [:schedule_frame  {:optional true} [:maybe [:enum "first" "mid" "last"]]]
+    [:schedule_frame  {:optional true} [:maybe (into [:enum "first" "mid" "last"] calendar-day-frames)]]
     [:schedule_hour   {:optional true} [:maybe ::CronHour]]
     [:schedule_minute {:optional true} [:maybe ::CronMinute]]]
    (i18n/deferred-tru "value must be a valid schedule map. See schema in metabase.util.cron for details.")))
@@ -80,8 +90,20 @@
    "fri"  6
    "sat"  7})
 
+(defn- calendar-day-frame->day-of-month
+  "Cron day-of-month for a calendar-day schedule frame, e.g. `\"day-7\"` -> `\"7\"`. Throws for anything else: a `nil`
+  here would fall through to a day-of-month of `*`, i.e. every single day, which is the one way a scheduler must
+  never fail."
+  [frame]
+  (or (when (calendar-day-frame? frame)
+        (subs frame (count "day-")))
+      (throw (ex-info (i18n/tru "Invalid monthly schedule frame: {0}" (pr-str frame))
+                      {:frame frame, :status-code 400}))))
+
 (defn- frame->cron [frame day-of-week]
-  (if day-of-week
+  ;; a calendar-day frame like "day-7" means the 7th of the month, so it ignores any day-of-week. Pulses gate that
+  ;; combination in `valid-schedule?`, but the DB-sync schedule API shares this schema and does not, so guard here.
+  (if (and day-of-week (not (calendar-day-frame? frame)))
     ;; specific days of week like Mon or Fri
     (assoc {:day-of-month "?"}
            :day-of-week (case frame
@@ -92,7 +114,8 @@
            :day-of-month (case frame
                            "first" "1"
                            "mid"   "15"
-                           "last"  "L"))))
+                           "last"  "L"
+                           (calendar-day-frame->day-of-month frame)))))
 
 (mu/defn schedule-map->cron-string :- CronScheduleString
   "Convert the frontend schedule map into a cron string."
@@ -122,14 +145,23 @@
       "6" "fri"
       "7" "sat")))
 
+(defn- cron-day-of-month->frame
+  "Schedule frame for a cron day-of-month field, e.g. `\"7\"` -> `\"day-7\"`. `nil` when it isn't a single day we can
+  round-trip -- `\"*\"`, `\"29\"`-`\"31\"`, or a list like `\"1,15\"`."
+  [day-of-month]
+  (let [frame (str "day-" day-of-month)]
+    (when (calendar-day-frame? frame)
+      frame)))
+
 (defn- cron-day-of-week+day-of-month->frame [day-of-week day-of-month]
   (cond
     (re-matches #"^\d#1$" day-of-week) "first"
     (re-matches #"^\dL$"  day-of-week) "last"
+    ;; the 1st, 15th and last day keep their older names so existing schedules round-trip byte-identically
     (= day-of-month "1")               "first"
     (= day-of-month "15")              "mid"
     (= day-of-month "L")               "last"
-    :else                              nil))
+    :else                              (cron-day-of-month->frame day-of-month)))
 
 (defn- cron->digit [digit]
   (when (and digit

@@ -12,6 +12,7 @@ import { connect } from "metabase/redux";
 import type { State } from "metabase/redux/store";
 import { Button, Card, Flex, Icon, Tooltip } from "metabase/ui";
 import { conjunct, formatTimeWithUnit } from "metabase/utils/formatting";
+import { isCalendarDayFrame } from "metabase/utils/schedule-frame";
 import { formatFrame } from "metabase/utils/time-dayjs";
 import { formatDateTimeWithUnit } from "metabase/visualizations/lib/formatting";
 import type { UiParameter } from "metabase-lib/v1/parameters/types";
@@ -356,6 +357,12 @@ function friendlySchedule(channel: Channel): string {
     }
     case "monthly": {
       const hour = formatTimeWithUnit(schedule_hour ?? 0, "hour-of-day");
+      // a specific calendar day has no weekday to name, so it reads "on the 5th" rather than "on the 5th <day>"
+      if (isCalendarDayFrame(schedule_frame)) {
+        const dayOfMonth = formatFrame(schedule_frame);
+        scheduleString += t`monthly on the ${dayOfMonth} at ${hour}`;
+        break;
+      }
       const day = schedule_day
         ? formatDateTimeWithUnit(schedule_day, "day-of-week")
         : "calendar day";

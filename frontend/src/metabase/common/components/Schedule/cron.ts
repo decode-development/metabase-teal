@@ -1,5 +1,10 @@
 import { memoize } from "underscore";
 
+import {
+  calendarDayFromFrame,
+  frameFromCronDayOfMonth,
+  isCalendarDayFrame,
+} from "metabase/utils/schedule-frame";
 import type {
   ScheduleDayType,
   ScheduleFrameType,
@@ -29,7 +34,10 @@ const dayToCron = (day: ScheduleSettings["schedule_day"]) => {
 };
 
 const frameToCronMap = { first: "1", last: "L", mid: "15" };
-const frameToCron = (frame: ScheduleFrameType) => frameToCronMap[frame];
+const frameToCron = (frame: ScheduleFrameType) =>
+  isCalendarDayFrame(frame)
+    ? String(calendarDayFromFrame(frame))
+    : frameToCronMap[frame];
 
 const frameFromCronMap: Record<string, ScheduleFrameType> = {
   "15": "mid",
@@ -37,7 +45,9 @@ const frameFromCronMap: Record<string, ScheduleFrameType> = {
   L: "last",
 };
 const frameFromCron = (frameInCronFormat: string) =>
-  frameFromCronMap[frameInCronFormat];
+  // the map is checked first so a weekday suffix ('1' from '2#1', or 'L') never reaches the day-of-month fallback
+  frameFromCronMap[frameInCronFormat] ??
+  frameFromCronDayOfMonth(frameInCronFormat);
 
 export const scheduleSettingsToCron = (settings: ScheduleSettings): string => {
   const second = "0";
@@ -57,7 +67,7 @@ export const scheduleSettingsToCron = (settings: ScheduleSettings): string => {
     // There are two kinds of monthly schedule:
     // - weekday-based (e.g. "on the first Monday of the month")
     // - date-based (e.g. "on the 15th of the month")
-    if (settings.schedule_day) {
+    if (settings.schedule_day && !isCalendarDayFrame(settings.schedule_frame)) {
       // Handle weekday-based monthly schedule
       const frameInCronFormat = frameToCron(settings.schedule_frame).replace(
         /^1$/,
@@ -68,6 +78,8 @@ export const scheduleSettingsToCron = (settings: ScheduleSettings): string => {
     } else {
       // Handle date-based monthly schedule
       dayOfMonth = frameToCron(settings.schedule_frame);
+      // cron rejects a day-of-month and a day-of-week together, and the date wins here
+      weekday = Cron.NoSpecificValue;
     }
   }
   const cronExpression = [
