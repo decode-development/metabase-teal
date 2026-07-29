@@ -32,7 +32,7 @@
     (let [html (render!)]
       (is (re-find #"<svg" html) "should contain inline SVG")
       (is (not (re-find #"currentColor" html)) "should not contain currentColor")
-      (is (re-find #"#509ee3" html) "should contain the default brand color"))))
+      (is (re-find #"#135756" html) "should contain the default brand color"))))
 
 (deftest custom-logo-data-uri-test
   (testing "data URI logo is preserved verbatim in img src"
