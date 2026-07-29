@@ -6,6 +6,10 @@ import { c } from "ttag";
 import { CronExpressionInput } from "metabase/common/components/CronExpressioInput";
 import { Box, Flex, type FlexProps } from "metabase/ui";
 import { formatCronExpressionForUI } from "metabase/utils/cron";
+import {
+  isCalendarDayFrame,
+  withCalendarDayFrames,
+} from "metabase/utils/schedule-frame";
 
 import {
   GROUP_ATTRIBUTES,
@@ -33,7 +37,7 @@ import {
   normalizeScheduleValue,
   setScheduleField,
 } from "./domain";
-import { byTheMinuteIntervals } from "./strings";
+import { byTheMinuteIntervals, getScheduleStrings } from "./strings";
 import type { ScheduleChangeEvent, UpdateSchedule } from "./types";
 
 export interface ScheduleProps {
@@ -44,6 +48,8 @@ export interface ScheduleProps {
   timezone?: string;
   verb?: string;
   minutesOnHourPicker?: boolean;
+  /** Offer every day from the 1st to the 28th in the monthly frame select, not just first, last and the 15th. */
+  allowCalendarDays?: boolean;
   getDefaults?: GetScheduleDefaults;
   labelAlignment?: "compact" | "left";
   layout?: "vertical" | "horizontal";
@@ -61,6 +67,7 @@ export const Schedule = ({
   timezone,
   verb,
   minutesOnHourPicker,
+  allowCalendarDays = false,
   getDefaults = getScheduleDefaults,
   onScheduleChange,
   labelAlignment = "compact",
@@ -176,6 +183,11 @@ export const Schedule = ({
         key="frame"
         schedule_frame={schedule_frame}
         updateSchedule={updateSchedule}
+        frames={
+          allowCalendarDays
+            ? withCalendarDayFrames(getScheduleStrings().frames)
+            : undefined
+        }
       />
     );
 
@@ -231,7 +243,7 @@ export const Schedule = ({
           ).jt`${verb} ${selectFrequency} on ${selectWeekday} at ${selectTime}`,
       )
       .with("monthly", () =>
-        schedule_frame === "mid"
+        isCalendarDayFrame(schedule_frame)
           ? // For example, "Send monthly on the 15th at 12:00pm"
             c(
               "{0} is a verb like 'Send', {1} is an adverb like 'hourly', {2} is the noun '15th' (as in 'the 15th of the month'), {3} is a time like '12:00pm'",
@@ -247,6 +259,7 @@ export const Schedule = ({
       .exhaustive();
   }, [
     minutesOnHourPicker,
+    allowCalendarDays,
     normalizedValue,
     scheduleOptions,
     timezone,

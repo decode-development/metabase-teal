@@ -249,6 +249,27 @@ describe("formatSubscriptionDelivery", () => {
     ).toBe("Emailed monthly on the first calendar day at 8:00 AM");
   });
 
+  it("formats a monthly schedule pinned to a calendar day without a weekday or the words 'calendar day'", () => {
+    expect(
+      formatSubscriptionDelivery(
+        createMockChannel({
+          schedule_type: "monthly",
+          schedule_frame: "day-5",
+          schedule_hour: 15,
+        }),
+      ),
+    ).toBe("Emailed monthly on the 5th at 3:00 PM");
+    expect(
+      formatSubscriptionDelivery(
+        createMockChannel({
+          schedule_type: "monthly",
+          schedule_frame: "mid",
+          schedule_hour: 15,
+        }),
+      ),
+    ).toBe("Emailed monthly on the 15th at 3:00 PM");
+  });
+
   it("says the schedule is not set when it misses its hour", () => {
     expect(
       formatSubscriptionDelivery(
