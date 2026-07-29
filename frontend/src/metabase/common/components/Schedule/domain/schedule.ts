@@ -1,5 +1,6 @@
 import _ from "underscore";
 
+import { isCalendarDayFrame } from "metabase/utils/schedule-frame";
 import { isNotNull } from "metabase/utils/types";
 
 import type {
@@ -118,10 +119,10 @@ const finalizeScheduleValue = (
   schedule: ScheduleBuilderValue,
   errorMessage: string,
 ): NormalizedScheduleBuilderValue => {
-  const nextValue =
-    schedule.schedule_frame === "mid"
-      ? { ...schedule, schedule_day: null }
-      : schedule;
+  // a specific calendar day (the 15th, or any of days 1-28) has no weekday
+  const nextValue = isCalendarDayFrame(schedule.schedule_frame)
+    ? { ...schedule, schedule_day: null }
+    : schedule;
   if (!isNormalizedScheduleBuilderValue(nextValue)) {
     throw new Error(errorMessage);
   }
