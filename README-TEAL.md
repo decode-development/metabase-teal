@@ -58,6 +58,13 @@ The theme files above only feed the browser. Emails, the chart images inside the
 
 Static viz hardcodes Poppins rather than following `application-font`, because the width table is font-specific. Upstream has the same limitation with Lato.
 
+**Logo.** Upstream points the email logo at `http://static.metabase.com/email_logo.png` — a fixed blue PNG, fetched over plain HTTP. We rasterise the bundled `logo.svg` in the brand colour and embed it as an inline (`cid:`) attachment instead:
+- `src/metabase/channel/render/js/svg.clj` — `branded-logo`
+- `src/metabase/channel/email/logo.clj` — `logo-bundle`
+- `src/metabase/channel/impl/email.clj` — `resolve-logo`, shared by the card, dashboard and system-event email paths
+
+Any new send path whose template shows the logo must go through `logo-bundle` (or `messages/with-logo-attachment`), or the `cid:` reference resolves to nothing and the recipient sees a broken image.
+
 The PDF attachment's "Made with Metabase" badge is recoloured in `src/metabase/channel/render/pdf.clj` (`brand-svg-colors`) and `resources/fonts/pdf/metabase_logo_with_text.svg`. Its secondary tint `#ACC4C4` is the teal at the same 35%-over-white ratio that upstream's `#C2DAF0` was of its `#509EE3`, so the logo keeps its visual weight.
 
 ### Dark-mode sidebar legibility

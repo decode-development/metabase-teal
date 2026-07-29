@@ -38,6 +38,7 @@
  [render.pdf
   render-dashboard-to-pdf]
  [js.svg
+  branded-logo
   icon]
  [table-data
   show-in-table?
