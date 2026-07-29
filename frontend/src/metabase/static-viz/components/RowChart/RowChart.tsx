@@ -1,6 +1,7 @@
 import { Group } from "@visx/group";
 
 import type { StaticChartProps } from "metabase/static-viz/components/StaticVisualization";
+import { STATIC_VIZ_FONT_NAME } from "metabase/static-viz/constants/fonts";
 import { measureTextWidth } from "metabase/static-viz/lib/text";
 import { getChartHeight } from "metabase/static-viz/lib/utils";
 import type { FontStyle, TextWidthMeasurer } from "metabase/utils/measure-text";
@@ -111,7 +112,7 @@ export const StaticRowChart = ({
       xmlns="http://www.w3.org/2000/svg"
       width={width}
       height={fullChartHeight}
-      fontFamily="Lato"
+      fontFamily={STATIC_VIZ_FONT_NAME}
     >
       {legend.items.length > 0 && (
         <Legend

@@ -71,7 +71,7 @@
                     set)))))))
 
 ;; --------------------------------------------------------------------------------------------
-;; "Made with Metabase" vector branding badge (logo SVG paths + Lato-outlined "Made with")
+;; "Made with Metabase" vector branding badge (logo SVG paths + Poppins-outlined "Made with")
 ;; --------------------------------------------------------------------------------------------
 
 (deftest ^:parallel branding-logo-asset-test
