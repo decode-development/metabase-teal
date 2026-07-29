@@ -1,6 +1,7 @@
 import { geoAlbersUsa, geoMercator, geoPath } from "d3";
 import type { Feature } from "geojson";
 
+import { STATIC_VIZ_FONT_FAMILY } from "metabase/static-viz/constants/fonts";
 import {
   HEAT_MAP_ZERO_COLOR,
   buildColorScale,
@@ -245,7 +246,7 @@ const BottomLegend = ({ titles, colors, fontColor, bounds }: LegendProps) => {
               x={x + itemWidth / 2}
               y={labelY}
               fontSize={fontSize}
-              fontFamily="Lato, sans-serif"
+              fontFamily={STATIC_VIZ_FONT_FAMILY}
               textAnchor="middle"
               fill={fontColor}
             >
@@ -302,7 +303,7 @@ const SideLegend = ({
                 fontSize * SIDE_LEGEND.labelBaselineRatio
               }
               fontSize={fontSize}
-              fontFamily="Lato, sans-serif"
+              fontFamily={STATIC_VIZ_FONT_FAMILY}
               textAnchor="start"
               fill={fontColor}
             >

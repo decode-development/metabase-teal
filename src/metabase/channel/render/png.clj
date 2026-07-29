@@ -106,37 +106,42 @@
   [^Font font s]
   (neg? (.canDisplayUpTo font s)))
 
-(def ^:private get-lato
-  (letfn [(get-lato* []
-            (let [lato-names #{"Lato Regular" "Lato-Regular" "lato" "lato-regular"}
-                  env        (GraphicsEnvironment/getLocalGraphicsEnvironment)
-                  fonts      (.getAllFonts env)
-                  font       ^Font (some #(when (lato-names (.getName ^Font %)) %) fonts)]
+(def ^:private get-brand-font
+  (letfn [(get-brand-font* []
+            (let [brand-font-names #{"Poppins Regular" "Poppins-Regular" "poppins" "poppins-regular"}
+                  env              (GraphicsEnvironment/getLocalGraphicsEnvironment)
+                  fonts            (.getAllFonts env)
+                  font             ^Font (some #(when (brand-font-names (.getName ^Font %)) %) fonts)]
               font))]
-    (memoize get-lato*)))
+    (memoize get-brand-font*)))
 
-(defn- lato-can-render?
+(defn- brand-font-can-render?
   [s]
-  (let [lato (get-lato)]
-    (when lato
-      (font-can-fully-render? lato s))))
+  (let [brand-font (get-brand-font)]
+    (when brand-font
+      (font-can-fully-render? brand-font s))))
 
-(defn- wrap-non-lato-chars
-  "Wrap characters not supported by the installed Lato font in a span so that we can explicitly set the font to sans-serif.
-  We do this to work around unexpected font-fallback behaviours in CSSBox.
+(defn- wrap-non-brand-font-chars
+  "Wrap characters not supported by the installed brand font in a span so that we can explicitly set the font to
+  sans-serif. We do this to work around unexpected font-fallback behaviours in CSSBox.
 
-  Lato is properly loaded/registered in `metabase.channel.render.style/regiter-fonts!`, which means the
-  java.awt GraphicsEnvironment has Lato available as a Physical font. The loaded physical font does not contain
-  glyphs to properly render many international characters, and instead of falling back to another font on a per-glyph basis,
-  it simply renders a '[?]', which is no good.
+  Poppins is properly loaded/registered in `metabase.channel.render.style/register-fonts!`, which means the
+  java.awt GraphicsEnvironment has it available as a Physical font. The loaded physical font does not contain
+  glyphs to properly render many international characters, and instead of falling back to another font on a
+  per-glyph basis, it simply renders a '[?]', which is no good.
 
-  If a given string, inside a `transformable-element` contains any character that isn't Lato-compatible, replace the entire string.
-  This is done to make the string as consistent as possible (no mixing fonts in a single string)."
+  This fallback matters more for Poppins than it did for upstream's Lato: Poppins covers Latin, Latin Extended
+  and Devanagari, but *not* Cyrillic, Greek or Vietnamese, all of which Lato had. Those scripts reach an email
+  through this path.
+
+  If a given string, inside a `transformable-element` contains any character the brand font can't render,
+  replace the entire string. This is done to make the string as consistent as possible (no mixing fonts in a
+  single string)."
   [content]
   (let [transformable-els #{:div :span :td :th :tr :table :p :tbody :thead}
         string-wrapper    (fn [part]
                             (if (and (string? part)
-                                     (not (lato-can-render? part)))
+                                     (not (brand-font-can-render? part)))
                               [:span {:style (style/style {:font-family "sans-serif"})} part]
                               part))]
     (walk/postwalk
@@ -172,11 +177,11 @@
                             content)
            html (html [:html
                        [:body {:style (style/style
-                                       {:font-family      "Lato, 'Helvetica Neue', 'Lucida Grande', sans-serif"
+                                       {:font-family      "Poppins, 'Helvetica Neue', 'Lucida Grande', sans-serif"
                                         :margin           0
                                         :padding          0
                                         :background-color :white})}
-                        (wrap-non-lato-chars padded-content)]])]
+                        (wrap-non-brand-font-chars padded-content)]])]
        (with-open [os (ByteArrayOutputStream.)]
          (-> (render-to-png html width scale)
              (write-image! "png" os))
