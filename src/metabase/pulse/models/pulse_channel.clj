@@ -5,6 +5,7 @@
    [metabase.models.interface :as mi]
    [metabase.notification.models :as notification.models]
    [metabase.util :as u]
+   [metabase.util.cron :as u.cron]
    [metabase.util.i18n :refer [tru]]
    [methodical.core :as methodical]
    [toucan2.core :as t2]))
@@ -34,9 +35,15 @@
   [hour]
   (and (integer? hour) (<= 0 hour 23)))
 
+(def ^:private calendar-day-frames
+  "Schedule frames that pin a monthly schedule to a specific calendar day, e.g. `:day-7`. `:mid` is the 15th. These
+  are mutually exclusive with a `schedule_day`: `:first`/`:last` pair with a weekday to mean \"the first Monday\", but
+  a specific calendar day cannot."
+  (into #{:mid} (map keyword) u.cron/calendar-day-frames))
+
 (def ^:private schedule-frames
   "Set of possible schedule-frames allow for a PulseChannel."
-  #{:first :mid :last})
+  (into #{:first :mid :last} calendar-day-frames))
 
 (defn schedule-frame?
   "Is `frame` a valid schedule frame?"
@@ -65,13 +72,13 @@
    (and (= schedule-type :weekly)
         (hour-of-day? schedule-hour)
         (day-of-week? schedule-day))
-   ;; monthly schedule requires a valid `hour` and `frame`.  also a `day` if frame = first or last
+   ;; monthly schedule requires a valid `hour` and `frame`.  `first`/`last` may also carry a `day` of the week (e.g.
+   ;; "the first Monday"); a specific calendar day such as `mid` (the 15th) or `day-5` may not.
    (and (= schedule-type :monthly)
         (schedule-frame? schedule-frame)
         (hour-of-day? schedule-hour)
         (or (contains? #{:first :last} schedule-frame)
-            (and (= :mid schedule-frame)
-                 (nil? schedule-day))))))
+            (nil? schedule-day)))))
 
 (def channel-types
   "Map which contains the definitions for each type of pulse channel we allow.  Each key is a channel type with a map

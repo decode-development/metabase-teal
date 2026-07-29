@@ -7,6 +7,7 @@ import _ from "underscore";
 import { CronExpressionInput } from "metabase/common/components/CronExpressioInput";
 import { Box, Flex, type FlexProps } from "metabase/ui";
 import { formatCronExpressionForUI } from "metabase/utils/cron";
+import { isCalendarDayFrame } from "metabase/utils/schedule-frame";
 import { removeNullAndUndefinedValues } from "metabase/utils/types";
 import type { ScheduleSettings, ScheduleType } from "metabase-types/api";
 
@@ -101,8 +102,8 @@ export const Schedule = ({
         );
       }
 
-      // when the monthly schedule frame is the 15th, clear out the schedule_day
-      if (newSchedule.schedule_frame === "mid") {
+      // when the monthly schedule frame is a specific calendar day, clear out the schedule_day
+      if (isCalendarDayFrame(newSchedule.schedule_frame)) {
         newSchedule.schedule_day = null;
       }
 
@@ -245,7 +246,7 @@ export const Schedule = ({
           ).jt`${verb} ${selectFrequency} on ${selectWeekday} at ${selectTime}`,
       )
       .with("monthly", () =>
-        schedule_frame === "mid"
+        isCalendarDayFrame(schedule_frame)
           ? // For example, "Send monthly on the 15th at 12:00pm"
             c(
               "{0} is a verb like 'Send', {1} is an adverb like 'hourly', {2} is the noun '15th' (as in 'the 15th of the month'), {3} is a time like '12:00pm'",

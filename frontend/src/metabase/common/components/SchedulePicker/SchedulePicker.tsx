@@ -15,10 +15,13 @@ import {
   AM_PM_OPTIONS,
   HOUR_OPTIONS,
   MINUTE_OPTIONS,
-  MONTH_DAY_OPTIONS,
   getDayOfWeekOptions,
 } from "metabase/utils/date-time";
 import { capitalize } from "metabase/utils/formatting/strings";
+import {
+  getMonthDayOptions,
+  isCalendarDayFrame,
+} from "metabase/utils/schedule-frame";
 import type {
   ScheduleDayType,
   ScheduleFrameType,
@@ -144,8 +147,9 @@ export class SchedulePicker extends Component<SchedulePickerProps> {
         };
       }
     } else if (name === "schedule_frame") {
-      // when the monthly schedule frame is the 15th, clear out the schedule_day
-      if (value === "mid") {
+      // when the monthly schedule frame is a specific calendar day (the 15th, or any of days 1-28), there is no
+      // weekday to pick, so clear out the schedule_day
+      if (isCalendarDayFrame(value as ScheduleFrameType)) {
         newSchedule = { ...newSchedule, schedule_day: null };
       } else {
         // first or last, needs a day of the week
@@ -179,9 +183,9 @@ export class SchedulePicker extends Component<SchedulePickerProps> {
               value as ScheduleFrameType,
             )
           }
-          data={toMantineData(MONTH_DAY_OPTIONS)}
+          data={toMantineData(getMonthDayOptions())}
         />
-        {schedule.schedule_frame !== "mid" && (
+        {!isCalendarDayFrame(schedule.schedule_frame) && (
           <span className={CS.mx1}>
             <DynamicWidthSelect
               minButtonWidth={110}
