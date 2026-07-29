@@ -8,6 +8,7 @@
    [metabase.audit-app.events.audit-log]
    [metabase.channel.api.email :as api.email]
    [metabase.channel.email :as email]
+   [metabase.channel.email.logo :as email.logo]
    [metabase.channel.settings :as channel.settings]
    [metabase.config.core :as config]
    [metabase.notification.send :as notification.send]
@@ -216,12 +217,27 @@
       (update :content-id boolean)
       (u/update-if-exists :file-name strip-timestamp)))
 
+(defn- teal-logo-content-id
+  "The `content-id` of the brand-coloured logo this fork embeds in every email that uses the default logo."
+  []
+  (some-> (email.logo/logo-bundle email.logo/default-logo-url) :image-src (str/replace-first #"^cid:" "")))
+
+(defn- teal-logo-attachment?
+  "Is `email-part` the logo this fork embeds in every email using the default logo? It sits alongside the parts the
+  upstream tests assert on, so [[summarize-multipart-single-email]] leaves it out of the summary and those assertions
+  keep describing what upstream's emails contain. The tests of the logo itself read the raw email instead, see
+  `metabase.channel.email.logo-test` and `metabase.channel.email.messages-test`."
+  [{:keys [type content-id]}]
+  (and (= type :inline)
+       (some? content-id)
+       (= content-id (teal-logo-content-id))))
+
 (defn summarize-multipart-single-email
   [email & regexes]
   (let [email-body->regex-boolean (create-email-body->regex-fn regexes)
         body-or-content           (fn [email-body-seq]
                                     (doall
-                                     (for [{email-type :type :as email-part} email-body-seq]
+                                     (for [{email-type :type :as email-part} (remove teal-logo-attachment? email-body-seq)]
                                        (if (string? email-type)
                                          (email-body->regex-boolean email-part)
                                          (summarize-attachment email-part)))))]

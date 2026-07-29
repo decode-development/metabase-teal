@@ -54,7 +54,10 @@
               (let [email {:from    "notifications@metabase.com",
                            :subject "Welcome Rasta to Metabase Test"
                            :body    [{:type    "text/html; charset=utf-8"
-                                      :content "Hello Rasta! Welcome to Metabase Test!"}]}]
+                                      :content "Hello Rasta! Welcome to Metabase Test!"}
+                             ;; this fork's brand logo, embedded as an inline image
+                             {:type         :inline
+                              :content-type "image/png"}]}]
                 (is (=? {"crowberto@metabase.com" [email]
                          "ngoc@metabase.com"      [email]
                          "hi@metabase.com"        [email]}
@@ -91,7 +94,10 @@
               (let [email {:from    "notifications@metabase.com",
                            :subject "Welcome Rasta to Metabase Test"
                            :body    [{:type    "text/html; charset=utf-8"
-                                      :content "Hello Rasta! Welcome to Metabase Test!\n"}]}]
+                                      :content "Hello Rasta! Welcome to Metabase Test!\n"}
+                             ;; this fork's brand logo, embedded as an inline image
+                             {:type         :inline
+                              :content-type "image/png"}]}]
                 (is (=? {"crowberto@metabase.com" [email]
                          "ngoc@metabase.com"      [email]
                          "hi@metabase.com"        [email]}

@@ -1438,7 +1438,8 @@
                                                                     :skip_if_empty false}))))
                    content (-> channel-messages :channel/email first :message first :content)]
                (is (=? {:channel/email [{:message [{:content string?}
-                                                   {:content java.net.URL}]}]}
+                                                   {:content java.net.URL}   ; dashboard icon
+                                                   {:content java.net.URL}]}]} ; Teal's logo
                        channel-messages)
                    "Pro tip: if channel-messages is empty check and make sure you've built static viz with `bun run build-static-viz`")
                (is (str/includes? content "override-val"))
