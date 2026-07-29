@@ -1,6 +1,7 @@
 import { Group } from "@visx/group";
 
 import { Text } from "metabase/static-viz/components/Text";
+import { STATIC_VIZ_FONT_NAME } from "metabase/static-viz/constants/fonts";
 import { measureTextWidth } from "metabase/static-viz/lib/text";
 import { truncateText } from "metabase/visualizations/lib/text";
 
@@ -56,7 +57,11 @@ export const Legend = ({
                     Number(style.size),
                     Number(style.weight),
                   ),
-                { size: fontSize, weight: fontWeight, family: "Lato" },
+                {
+                  size: fontSize,
+                  weight: fontWeight,
+                  family: STATIC_VIZ_FONT_NAME,
+                },
               )
             : originalName;
 

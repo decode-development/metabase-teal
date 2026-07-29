@@ -28,10 +28,12 @@
   "Physical font keyword -> classpath resource. The fonts are TrueType (glyf) format, so PDFBox can subset them and
   the output PDF only carries the glyphs actually used.
 
-  Lato regular and bold are preferred, as that's the Metabase UI's main body text, as well as the font for our logo and
-  other branding. Noto Sans has further coverage of Latin accents and special characters, plus Devanagari (Hindi et al),
-  Cyrillic and Greek. Hebrew and Arabic are handled by specific font faces, and finally the per-region Noto Sans
-  JP/KR/SC faces cover Japanese, Korean and Simplified Chinese.
+  Poppins regular and bold are preferred, as that's the UI's main body text and the fork's brand font (see
+  README-TEAL.md). Noto Sans has further coverage of Latin accents and special characters, plus Devanagari (Hindi et
+  al), Cyrillic and Greek — the last two matter more here than they did with upstream's Lato, which covered them
+  itself; Poppins does not, so they reach the page through the per-glyph fallback in [[load-fonts!]]. Hebrew and
+  Arabic are handled by specific font faces, and finally the per-region Noto Sans JP/KR/SC faces cover Japanese,
+  Korean and Simplified Chinese.
 
   See [[visual-order]] for RTL reordering for Hebrew and Arabic, and for *shaping* of Arabic."
   {:noto-regular     "fonts/pdf/NotoSans-Regular.ttf"
@@ -40,12 +42,11 @@
    :noto-bold-italic "fonts/pdf/NotoSans-BoldItalic.ttf"
    :noto-mono        "fonts/pdf/NotoSansMono-Regular.ttf"
 
-   ;; TODO: (bshepherdson 2026-06-11) We reuse the FE's bundled Lato asset directly rather than duplicating it into a
-   ;; BE-owned path (it has full Latin/Cyrillic/Greek/Vietnamese coverage and is already shipped). This couples us to
-   ;; the `frontend_client` asset layout. These files should be moved to a BE-owned part of `resources/` and the static
-   ;; asset serving adjusted to preserve the FE URLs.
-   :brand-regular    "frontend_client/app/fonts/Lato/Lato-Regular.ttf"
-   :brand-bold       "frontend_client/app/fonts/Lato/lato-v16-latin-700.ttf"
+   ;; TODO: (bshepherdson 2026-06-11) We reuse the FE's bundled brand-font asset directly rather than duplicating it
+   ;; into a BE-owned path (it is already shipped). This couples us to the `frontend_client` asset layout. These files
+   ;; should be moved to a BE-owned part of `resources/` and the static asset serving adjusted to preserve the FE URLs.
+   :brand-regular    "frontend_client/app/fonts/Poppins/Poppins-Regular.ttf"
+   :brand-bold       "frontend_client/app/fonts/Poppins/Poppins-Bold.ttf"
 
    :arabic-regular   "fonts/pdf/NotoSansArabic-Regular.ttf"
    :arabic-bold      "fonts/pdf/NotoSansArabic-Bold.ttf"
@@ -70,7 +71,7 @@
   `{:font <PDType0Font> :cmap <CmapLookup>}`. Bound while a document is being rendered, because `PDType0Fonts` are
   tied to a specific `PDDocument`; see [[load-fonts!]].
 
-  Latin keeps the Lato (or Noto Sans) look across all styles; the CJK regional faces are ordered fallbacks so mixed
+  Latin keeps the Poppins (or Noto Sans) look across all styles; the CJK regional faces are ordered fallbacks so mixed
   English/Japanese text renders per-glyph from the right font.
 
   CJK has no italic, so italic CJK falls back to the upright CJK face."

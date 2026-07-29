@@ -1,3 +1,4 @@
+import { STATIC_VIZ_FONT_NAME } from "metabase/static-viz/constants/fonts";
 import { measureTextWidth } from "metabase/static-viz/lib/text";
 import type { LegendItem } from "metabase/visualizations/echarts/cartesian/model/types";
 import { truncateText } from "metabase/visualizations/lib/text";
@@ -111,7 +112,7 @@ export const calculateLegendRows = ({
           {
             size: fontSize,
             weight: fontWeight,
-            family: "Lato",
+            family: STATIC_VIZ_FONT_NAME,
           },
         ),
         left: horizontalPadding,

@@ -2,6 +2,7 @@ import type { ColorPalette } from "metabase/ui/colors/types";
 import { DEFAULT_VISUALIZATION_THEME } from "metabase/visualizations/shared/utils/theme";
 import type { RenderingContext } from "metabase/visualizations/types";
 
+import { STATIC_VIZ_FONT_FAMILY } from "../constants/fonts";
 import { createColorGetter } from "../lib/colors";
 
 import { measureTextHeight, measureTextWidth } from "./text";
@@ -34,7 +35,7 @@ export const createStaticRenderingContext = (
       measureTextHeight(
         typeof style.size === "number" ? style.size : parseInt(style.size),
       ),
-    fontFamily: "Lato, 'Helvetica Neue', Helvetica, Arial, sans-serif",
+    fontFamily: STATIC_VIZ_FONT_FAMILY,
     theme: DEFAULT_VISUALIZATION_THEME,
   };
 };

@@ -98,7 +98,7 @@
 (defn font-style
   "Font family to use in rendered Pulses."
   []
-  {:font-family "Lato, \"Helvetica Neue\", Helvetica, Arial, sans-serif"})
+  {:font-family "Poppins, \"Helvetica Neue\", Helvetica, Arial, sans-serif"})
 
 (defn section-style
   "CSS style for a Pulse section."
@@ -192,9 +192,10 @@
 
 (defn- register-fonts! []
   (try
-    (register-font! "frontend_client/app/fonts/Lato/Lato-Regular.ttf")
-    (doseq [weight ["700" "900"]]
-      (register-font! (format "frontend_client/app/fonts/Lato/lato-v16-latin-%s.ttf" weight)))
+    ;; Poppins is the fork's brand font (see README-TEAL.md). The `.woff2` files next to these are for the
+    ;; browser; AWT needs TrueType, which is why the `.ttf` files are vendored alongside them.
+    (doseq [weight ["Regular" "Bold" "Black"]]
+      (register-font! (format "frontend_client/app/fonts/Poppins/Poppins-%s.ttf" weight)))
     (catch Throwable e
       (let [message (str (trs "Error registering fonts: Metabase will not be able to send Pulses.")
                          " "

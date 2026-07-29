@@ -32,9 +32,31 @@ The default UI font is **Poppins** (already bundled with Metabase upstream). Cha
 
 ### Emails and server-rendered output
 
-The theme files above only feed the browser. Emails, the chart images inside them, and the PDF attachment are rendered on the server, which cannot read the frontend theme — so each resolves branding through its own path. Note that `application-colors` is gated behind the `whitelabel` premium feature, so on an OSS build the **defaults** are the only lever.
+The theme files above only feed the browser. Emails, the chart images inside them, and the PDF attachment are rendered on the server, which cannot read the frontend theme — so each resolves branding through its own path. Note that `application-colors` and `application-font` are gated behind the `whitelabel` premium feature, so on an OSS build the **defaults** are the only lever.
 
 **Brand colour.** `metabase.appearance.settings/default-application-color` is the single backend source of the teal, and `application-color` falls back to it. That one value reaches email links, section headers, minibars, the dashboard/bell icon PNG, button styles and the OAuth consent page. Keep it in sync with the `brand` key in the theme files.
+
+**Font.** Poppins is used for email body text, rendered tables, chart labels and PDFs:
+
+- `resources/frontend_client/app/fonts/Poppins/Poppins-{Regular,Bold,Black}.ttf` — vendored **in addition to** the `.woff2` files upstream ships. The `.woff2` files are for the browser; Java's AWT (`Font.createFont`) and PDFBox both need TrueType. Licensed OFL-1.1 (`OFL.txt` alongside).
+- `src/metabase/channel/render/style.clj` — `font-style` and `register-fonts!`
+- `src/metabase/channel/render/png.clj` — `wrap-non-brand-font-chars` and the body font
+- `src/metabase/channel/render/pdf/font.clj` — `:brand-regular` / `:brand-bold`
+- `src/metabase/channel/email/_dashsub_alert_header.hbs`, `_header.hbs` — webfont `@import` plus `font-family`
+- `frontend/src/metabase/static-viz/constants/fonts.ts` — the one place static viz names the font
+
+**Script coverage caveat.** Poppins covers Latin, Latin Extended and Devanagari, but **not** Cyrillic, Greek or Vietnamese, all of which Lato did. Those scripts now depend on fallbacks that already existed: `wrap-non-brand-font-chars` swaps the whole string to `sans-serif` for PNG rendering, and PDFBox falls back per glyph to Noto Sans. Worth checking if you add a locale.
+
+**Chart label metrics.** Static viz renders in a headless GraalVM context and cannot measure text with a real font, so upstream ships a precomputed width table for Lato (`constants/char-sizes.ts`). Poppins is ~9% wider on average (~17% at bold), so reusing that table would under-measure every label and crowd axis margins, truncation and legend layout. We ship our own table instead:
+
+- `frontend/src/metabase/static-viz/constants/poppins-char-widths.ts` — generated; do not hand-edit
+- `dev/src/dev/static_viz_font_widths.clj` — the generator. Rerun after changing the Poppins asset:
+  ```bash
+  clj -M:dev -m dev.static-viz-font-widths
+  ```
+- `frontend/src/metabase/static-viz/lib/text.ts` prefers these widths and falls back to the Lato table per character for anything Poppins lacks.
+
+Static viz hardcodes Poppins rather than following `application-font`, because the width table is font-specific. Upstream has the same limitation with Lato.
 
 The PDF attachment's "Made with Metabase" badge is recoloured in `src/metabase/channel/render/pdf.clj` (`brand-svg-colors`) and `resources/fonts/pdf/metabase_logo_with_text.svg`. Its secondary tint `#ACC4C4` is the teal at the same 35%-over-white ratio that upstream's `#C2DAF0` was of its `#509EE3`, so the logo keeps its visual weight.
 
@@ -153,7 +175,11 @@ git add -A && git rebase --continue
 git push --force-with-lease origin HEAD:master
 ```
 
-Only files this fork also modifies can conflict — in practice the theme files, sidebar components, and email/render files listed under [Branding](#branding), plus the scheduling files listed under [Functional changes](#functional-changes). For branding, **keep the Teal values**; the upstream values for those keys will always be wrong for this fork. For the scheduling patch, keep both sides: the change is additive, so upstream's logic should survive with the `day-N` handling layered back on top — and note the rollback warning in that section before considering dropping the commit. The next daily run (or a re-run) goes green once `<TAG>` is on `master`.
+Only files this fork also modifies can conflict — in practice the theme files, sidebar components, and email/render files listed under [Branding](#branding), plus the scheduling files listed under [Functional changes](#functional-changes). For branding, **keep the Teal values**; the upstream values for those keys will always be wrong for this fork. For the scheduling patch, keep both sides: the change is additive, so upstream's logic should survive with the `day-N` handling layered back on top — and note the rollback warning in that section before considering dropping the commit.
+
+Two branding conflicts need more than picking a side. If upstream changes the Lato asset paths or adds a font weight, mirror the change onto the Poppins paths in `render/style.clj` and `render/pdf/font.clj` rather than reverting them. And if upstream regenerates `char-sizes.ts` or changes how `lib/text.ts` measures, re-run the width-table generator afterwards — a stale table shows up as crowded or clipped chart labels in emails, not as a test failure.
+
+The next daily run (or a re-run) goes green once `<TAG>` is on `master`.
 
 ### Docker Publishing — `teal-docker-publish.yml`
 

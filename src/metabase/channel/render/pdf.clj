@@ -1163,7 +1163,7 @@
 ;; "Made with Metabase" branding badge -- drawn top-right of every page. The logo + "Metabase"
 ;; wordmark come from an SVG whose glyphs are already `<path>` outlines, streamed into the content
 ;; stream as moveTo/lineTo/curveTo/fill so they stay crisp at any zoom. The "Made with" prefix is
-;; ordinary text in the regular body face (Lato, with the usual per-glyph Noto/CJK fallback -- see
+;; ordinary text in the regular body face (Poppins, with the usual per-glyph Noto/CJK fallback -- see
 ;; [[font/load-fonts!]] and [[font/font-runs]]). The badge sits in the empty top common/margin band, so it never
 ;; collides with the dashboard title (left) or the first card row.
 ;; --------------------------------------------------------------------------------------------
@@ -1292,7 +1292,7 @@
 (defn- draw-brand-badge!
   "Draw the 'Made with [logo] Metabase' badge, right-aligned to `right`, with the logo's top at
   `logo-top` (placed in the page's top common/margin band). The 'Made with' prefix is localized to the
-  current user's locale ([[tru]]) and drawn in the regular body face -- Lato, with the usual
+  current user's locale ([[tru]]) and drawn in the regular body face -- Poppins, with the usual
   per-glyph Noto/CJK fallback (see [[font/font-runs]]) -- so it renders across scripts; the logo +
   'Metabase' wordmark are locale-independent SVG vectors."
   [^PDPageContentStream cs right logo-top]

@@ -1,6 +1,7 @@
 import { Group } from "@visx/group";
 
 import { Text } from "metabase/static-viz/components/Text";
+import { STATIC_VIZ_FONT_NAME } from "metabase/static-viz/constants/fonts";
 import { measureTextWidth } from "metabase/static-viz/lib/text";
 import { truncateText } from "metabase/visualizations/lib/text";
 import type { RenderingContext } from "metabase/visualizations/types";
@@ -134,7 +135,7 @@ function truncateName(row: TreemapLegendRow, availableFromNameX: number) {
     {
       size: FONT_SIZE,
       weight: fontWeight,
-      family: "Lato",
+      family: STATIC_VIZ_FONT_NAME,
     },
   );
 }

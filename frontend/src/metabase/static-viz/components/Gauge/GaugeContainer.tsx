@@ -1,4 +1,5 @@
 import { CHAR_SIZES_FONT_WEIGHT } from "metabase/static-viz/constants/char-sizes";
+import { STATIC_VIZ_FONT_NAME } from "metabase/static-viz/constants/fonts";
 import { formatNumber } from "metabase/static-viz/lib/numbers";
 import { measureTextWidth } from "metabase/static-viz/lib/text";
 import type { ColorGetter } from "metabase/ui/colors/types";
@@ -134,7 +135,7 @@ export default function GaugeContainer({
             measureTextWidth(text, Number(style.size), Number(style.weight)),
           {
             size: SEGMENT_LABEL_FONT_SIZE,
-            family: "Lato",
+            family: STATIC_VIZ_FONT_NAME,
             weight: CHAR_SIZES_FONT_WEIGHT,
           },
         ),
