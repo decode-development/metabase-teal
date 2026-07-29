@@ -252,6 +252,20 @@ describe("normalizeScheduleValue", () => {
     ).toMatchObject({ schedule_frame: "mid", schedule_day: null });
   });
 
+  it("should clear the day when the frame is a specific calendar day", () => {
+    expect(
+      normalizeScheduleValue(
+        {
+          schedule_type: "monthly",
+          schedule_frame: "day-5",
+          schedule_day: "mon",
+          schedule_hour: 8,
+        },
+        getScheduleDefaults,
+      ),
+    ).toMatchObject({ schedule_frame: "day-5", schedule_day: null });
+  });
+
   it("should leave a raw cron expression untouched", () => {
     const value: ScheduleValue = {
       schedule_type: "cron",
@@ -473,6 +487,14 @@ describe("setScheduleField", () => {
     expect(setScheduleField(monthly, "schedule_frame", "mid")).toEqual({
       ...monthly,
       schedule_frame: "mid",
+      schedule_day: null,
+    });
+  });
+
+  it("should clear the day when the frame becomes a specific calendar day", () => {
+    expect(setScheduleField(monthly, "schedule_frame", "day-5")).toEqual({
+      ...monthly,
+      schedule_frame: "day-5",
       schedule_day: null,
     });
   });

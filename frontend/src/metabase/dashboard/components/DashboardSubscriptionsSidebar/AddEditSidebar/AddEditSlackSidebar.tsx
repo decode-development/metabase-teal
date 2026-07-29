@@ -138,6 +138,7 @@ export const AddEditSlackSidebar = ({
             "schedule_type",
           )}
           scheduleOptions={channelSpec.schedules}
+          allowCalendarDays
           verb={t`Send`}
           getDefaults={getScheduleDefaultsWithoutHour}
           renderScheduleDescription={renderScheduleDescription}

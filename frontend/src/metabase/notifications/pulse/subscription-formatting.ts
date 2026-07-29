@@ -12,6 +12,10 @@ import {
   deserializeTemporalUnitParameterValue,
 } from "metabase/querying/parameters/utils/parsing";
 import { conjunct } from "metabase/utils/formatting";
+import {
+  formatCalendarDayFrame,
+  isCalendarDayFrame,
+} from "metabase/utils/schedule-frame";
 import MetabaseSettings from "metabase/utils/settings";
 import { formatFrame } from "metabase/utils/time-dayjs";
 import { isNotNull } from "metabase/utils/types";
@@ -162,6 +166,15 @@ function formatScheduleInSentence(schedule: SetSubscriptionSchedule): string {
       return c("{0} is a day of the week, and {1} is a time of day")
         .t`${dayText} at ${hourText}`;
     })
+    // a specific calendar day has no weekday to name, so it reads "on the 5th" rather than "on the 5th calendar day"
+    .with(
+      { type: "monthly", frame: P.when(isCalendarDayFrame) },
+      ({ frame, hour }) => {
+        const frameText = formatCalendarDayFrame(frame) ?? formatFrame(frame);
+        const hourText = formatHour(hour);
+        return t`monthly on the ${frameText} at ${hourText}`;
+      },
+    )
     .with({ type: "monthly", day: P.nullish }, ({ frame, hour }) => {
       const frameText = formatFrame(frame);
       const hourText = formatHour(hour);
