@@ -157,6 +157,7 @@ export const AddEditEmailSidebar = ({
             "schedule_type",
           )}
           scheduleOptions={channelSpec.schedules}
+          allowCalendarDays
           verb={t`Sent`}
           getDefaults={getScheduleDefaultsWithoutHour}
           renderScheduleDescription={renderScheduleDescription}
