@@ -10,11 +10,17 @@ name: Build and Publish Docker Image
 #      trigger on the release tag: GitHub only runs a workflow that exists at the
 #      pushed ref, and the upstream tag commit carries no Teal workflow files.)
 #   2. Manual dispatch — rebuild master, labelled with the given version.
+#
+# A push touching only `.github/workflows/**` does not rebuild: the image content
+# would be identical. `paths-ignore` skips only when *every* changed file matches,
+# so a sync that also brings source changes still builds as usual.
 
 on:
   push:
     branches:
       - master
+    paths-ignore:
+      - ".github/workflows/**"
   workflow_dispatch:
     inputs:
       version:
