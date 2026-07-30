@@ -1,0 +1,97 @@
+name: Teal Tests
+
+# Runs the test suites relevant to this fork's own patches, against whichever ref
+# you pick. Manual only — nothing here fires automatically, so neither a branch
+# push nor the daily upstream sync spends any runner time on it.
+#
+# Upstream's own test workflows cannot be used for this. They are `workflow_call`
+# only (orchestrated by run-tests.yml), every job is
+# `runs-on: ${{ vars.DEFAULT_RUNNER_KEY }}` and this fork sets no Actions
+# variables, and teal-enforce-workflows.yml disables anything not named `teal-*`.
+# Hence a Teal-owned workflow that reuses only upstream's composite actions.
+#
+# NOTE: GitHub exposes workflow_dispatch only for workflows present on the
+# DEFAULT branch. This file must be on master before "Run workflow" appears —
+# but once it is there, a dispatch against another ref runs that ref's copy, so
+# the tests exercise the branch you select, not master.
+
+on:
+  workflow_dispatch:
+    inputs:
+      backend:
+        description: "Run backend tests"
+        type: boolean
+        default: true
+      frontend:
+        description: "Run frontend type-check and unit tests"
+        type: boolean
+        default: true
+      backend-namespaces:
+        description: "Backend test namespaces, in :only vector form"
+        default: "[metabase.util.cron-test metabase.pulse.models.pulse-channel-test metabase.pulse.task.send-pulses-test]"
+      frontend-specs:
+        description: "Jest path patterns, space separated. Leave blank to run every frontend unit test."
+        default: "frontend/src/metabase/utils/schedule-frame frontend/src/metabase/common/components/SchedulePicker frontend/src/metabase/common/components/Schedule"
+
+concurrency:
+  group: teal-test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend tests
+    if: ${{ inputs.backend }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Prepare back-end environment
+        uses: ./.github/actions/prepare-backend
+
+      # bin/test-agent produces plain-text output with no progress bars or ANSI
+      # codes, which reads far better in a CI log than `clojure -X:dev:test`.
+      - name: Run backend tests
+        env:
+          NAMESPACES: ${{ inputs.backend-namespaces }}
+        run: ./bin/test-agent :only "$NAMESPACES"
+
+  frontend:
+    name: Frontend type-check and unit tests
+    if: ${{ inputs.frontend }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+
+      # Installs Node and Bun, restores the dependency caches, runs a frozen
+      # `bun install`, and applies `patches/` via patch-package. That last part
+      # is essential and easy to miss: package.json's postinstall hook skips
+      # patching whenever CI is set, so nothing else applies them. Without it,
+      # tsc reads the unpatched kbar and redux-auth-wrapper typings and fails in
+      # files unrelated to whatever is being tested.
+      - name: Prepare front-end environment
+        uses: ./.github/actions/prepare-frontend
+
+      # The frontend needs the backend toolchain too: build-pure:cljs runs
+      # `shadow-cljs compile app`, which goes through the Clojure CLI.
+      - name: Prepare back-end environment
+        uses: ./.github/actions/prepare-backend
+
+      # `build:cljs` would re-run a non-frozen `bun install` first, so call the
+      # pure variant directly.
+      - name: Build ClojureScript
+        run: bun run build-pure:cljs
+
+      - name: Type check
+        run: bun run type-check-pure
+
+      # Runs even when the type check failed, so the two report independently.
+      # Without this, a pre-existing type error anywhere in the repo hides the
+      # unit test result entirely. The job still fails if either step fails.
+      - name: Run frontend unit tests
+        if: ${{ !cancelled() }}
+        env:
+          SPECS: ${{ inputs.frontend-specs }}
+        # Unquoted on purpose: SPECS is a list of path patterns, not one argument.
+        run: bun run test-unit-keep-cljs $SPECS
