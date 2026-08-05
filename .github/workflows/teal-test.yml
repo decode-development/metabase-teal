@@ -29,6 +29,10 @@ on:
       backend-namespaces:
         description: "Backend test namespaces, in :only vector form"
         default: "[metabase.util.cron-test metabase.pulse.models.pulse-channel-test metabase.pulse.task.send-pulses-test]"
+      static-viz:
+        description: "Build the static-viz JS bundle before the backend tests. Auto-enabled for body-test; costs a few minutes."
+        type: boolean
+        default: false
       frontend-specs:
         description: "Jest path patterns, space separated. Leave blank to run every frontend unit test."
         default: "frontend/src/metabase/utils/schedule-frame frontend/src/metabase/common/components/SchedulePicker frontend/src/metabase/common/components/Schedule"
@@ -43,11 +47,31 @@ jobs:
     if: ${{ inputs.backend }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      # Chart-rendering tests (metabase.channel.render.body-test) call into GraalJS and need
+      # frontend_client/app/dist/lib-static-viz.bundle.js. Without it every one of them fails with
+      # "Javascript resource not found", which reads like a code defect but is just a missing build.
+      # Auto-enabled when that namespace is being run, so nobody has to remember the flag.
+      NEEDS_STATIC_VIZ: ${{ inputs.static-viz || contains(inputs.backend-namespaces, 'body-test') }}
     steps:
       - uses: actions/checkout@v6
 
       - name: Prepare back-end environment
         uses: ./.github/actions/prepare-backend
+
+      - name: Prepare front-end environment
+        if: ${{ env.NEEDS_STATIC_VIZ == 'true' }}
+        uses: ./.github/actions/prepare-frontend
+
+      # Not `build-static-viz`: that re-runs a non-frozen `bun install` on top of the frozen,
+      # patch-package'd one prepare-frontend just did. These are the two steps it wraps.
+      - name: Build static-viz bundle
+        if: ${{ env.NEEDS_STATIC_VIZ == 'true' }}
+        # MB_EDITION must match bin/test-agent, which runs the :ee aliases. An OSS bundle silently
+        # ignores whitelabel settings, so render-correct-whitelabel-colors fails against it.
+        env:
+          MB_EDITION: ee
+        run: bun run build-release:cljs && bun run build-release:static-viz
 
       # bin/test-agent produces plain-text output with no progress bars or ANSI
       # codes, which reads far better in a CI log than `clojure -X:dev:test`.
