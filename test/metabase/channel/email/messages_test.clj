@@ -18,12 +18,21 @@
   (testing "password reset email can be sent successfully"
     (et/with-fake-inbox
       (messages/send-password-reset-email! "test@test.com" nil "http://localhost/some/url" true)
-      (is (= [{:from    "notifications@metabase.com",
-               :to      ["test@test.com"],
-               :subject "[Metabase] Password Reset Request",
-               :body    [{:type "text/html; charset=utf-8"}]}]
-             (-> (@et/inbox "test@test.com")
-                 (update-in [0 :body 0] dissoc :content))))))
+      (let [[email] (@et/inbox "test@test.com")]
+        ;; This fork embeds the brand-coloured logo as an inline attachment, so the body carries a
+        ;; second part that upstream's does not. Both the attachment's :content (a temp file URL)
+        ;; and its :content-id are generated per send, so neither is asserted here.
+        (is (= {:from    "notifications@metabase.com"
+                :to      ["test@test.com"]
+                :subject "[Metabase] Password Reset Request"
+                :body    [{:type "text/html; charset=utf-8"}
+                          {:type :inline, :content-type "image/png"}]}
+               (-> email
+                   (update-in [:body 0] dissoc :content)
+                   (update-in [:body 1] dissoc :content :content-id))))
+        (testing "the html references the logo by content id -- a mismatch renders as a broken image"
+          (is (str/includes? (get-in email [:body 0 :content])
+                             (str "cid:" (get-in email [:body 1 :content-id]))))))))
   ;; Email contents contain randomized elements, so we only check for the inclusion of a single word to verify
   ;; that the contents changed in the tests below.
   (testing "password reset email tells user if they should log in with Google Sign-In"

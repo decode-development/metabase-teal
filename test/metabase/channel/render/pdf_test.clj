@@ -551,41 +551,47 @@
           (doseq [[nm render expected]
                   ;; Plain text flows through the same item pipeline as Markdown, and it draws one
                   ;; record per word (not per line).
+                  ;;
+                  ;; The x/y coordinates below are glyph metrics, so they differ from upstream's:
+                  ;; this fork's body face is Poppins, not Lato. Regenerate them by printing
+                  ;; `(capture-line-draws! render)` rather than hand-editing. The CJK and furigana
+                  ;; cases are unchanged from upstream because they draw from the CJK fallback face.
                   [["plain wrap (Latin, 2 lines)"
                     (dtb reg 10.0 40.0 700.0 120.0 60.0 "The quick brown fox jumps over")
+                    ;; Poppins is wider than upstream's Lato, so "jumps" no longer fits on line 1.
                     [{:font :regular :pt 10.0 :x 40.0  :y 690.0 :text "The"}
-                     {:font :regular :pt 10.0 :x 59.3  :y 690.0 :text "quick"}
-                     {:font :regular :pt 10.0 :x 85.3  :y 690.0 :text "brown"}
-                     {:font :regular :pt 10.0 :x 116.2 :y 690.0 :text "fox"}
-                     {:font :regular :pt 10.0 :x 133.0 :y 690.0 :text "jumps"}
-                     {:font :regular :pt 10.0 :x 40.0  :y 677.0 :text "over"}]]
+                     {:font :regular :pt 10.0 :x 60.7  :y 690.0 :text "quick"}
+                     {:font :regular :pt 10.0 :x 90.2  :y 690.0 :text "brown"}
+                     {:font :regular :pt 10.0 :x 124.4 :y 690.0 :text "fox"}
+                     {:font :regular :pt 10.0 :x 40.0  :y 677.0 :text "jumps"}
+                     {:font :regular :pt 10.0 :x 73.8  :y 677.0 :text "over"}]]
                    ["plain RTL title (right-aligned, per-word reorder)"
                     (dtb bold 13.0 40.0 700.0 200.0 40.0 "مرحبا بكم")
-                    [{:font :bold :pt 13.0 :x 187.5 :y 687.0 :text "بكم"}
+                    [{:font :bold :pt 13.0 :x 187.2 :y 687.0 :text "بكم"}
                      {:font :bold :pt 13.0 :x 209.3 :y 687.0 :text "مرحبا"}]]
                    ["markdown inline styles (per-run fonts)"
                     (dmic 40.0 700.0 240.0 80.0 "Hi **bold** *em* `cd` [lk](https://x.com)")
                     [{:font :regular :pt 10.5 :x 40.0  :y 689.5 :text "Hi"}
-                     {:font :bold    :pt 10.5 :x 52.6  :y 689.5 :text "bold"}
-                     {:font :italic  :pt 10.5 :x 76.1  :y 689.5 :text "em"}
-                     {:font :mono    :pt 10.5 :x 96.8  :y 689.5 :text "cd"}
-                     {:font :regular :pt 10.5 :x 112.1 :y 689.5 :text "lk"}]]
+                     {:font :bold    :pt 10.5 :x 52.1  :y 689.5 :text "bold"}
+                     {:font :italic  :pt 10.5 :x 78.9  :y 689.5 :text "em"}
+                     {:font :mono    :pt 10.5 :x 99.6  :y 689.5 :text "cd"}
+                     {:font :regular :pt 10.5 :x 115.0 :y 689.5 :text "lk"}]]
                    ;; A word whose style changes mid-word with no whitespace ("x**Y**z") is ONE indivisible multi-piece
                    ;; word: the pieces draw contiguously in their own fonts and never break across a line.
                    ["markdown cross-style word stays one indivisible word"
                     (dmic 40.0 700.0 70.0 80.0 "x**Y**z tail end")
                     [{:font :regular :pt 10.5 :x 40.0 :y 689.5 :text "x"}
-                     {:font :bold    :pt 10.5 :x 45.2 :y 689.5 :text "Y"}
+                     {:font :bold    :pt 10.5 :x 45.0 :y 689.5 :text "Y"}
                      {:font :regular :pt 10.5 :x 52.1 :y 689.5 :text "z"}
-                     {:font :regular :pt 10.5 :x 59.5 :y 689.5 :text "tail"}
-                     {:font :regular :pt 10.5 :x 76.2 :y 689.5 :text "end"}]]
+                     {:font :regular :pt 10.5 :x 59.7 :y 689.5 :text "tail"}
+                     {:font :regular :pt 10.5 :x 78.5 :y 689.5 :text "end"}]]
                    ["markdown heading + bullet list (markers)"
                     (dmic 40.0 700.0 240.0 120.0 "## Head\n\n- one\n- two")
                     [{:font :bold    :pt 13.5 :x 40.0 :y 686.5 :text "Head"}
                      {:font :regular :pt 10.5 :x 40.0 :y 668.0 :text "- "}
-                     {:font :regular :pt 10.5 :x 46.6 :y 668.0 :text "one"}
+                     {:font :regular :pt 10.5 :x 48.6 :y 668.0 :text "one"}
                      {:font :regular :pt 10.5 :x 40.0 :y 650.3 :text "- "}
-                     {:font :regular :pt 10.5 :x 46.6 :y 650.3 :text "two"}]]
+                     {:font :regular :pt 10.5 :x 48.6 :y 650.3 :text "two"}]]
                    ["CJK wrap (per-character break units + kinsoku)"
                     (dmic 40.0 700.0 80.0 80.0 "これはテストです、日本語")
                     [{:font :regular :pt 10.5 :x 40.0  :y 689.5 :text "こ"}
@@ -601,14 +607,14 @@
                      {:font :regular :pt 10.5 :x 82.0  :y 675.9 :text "語"}]]
                    ["Arabic markdown (word reorder + right align)"
                     (dmic 40.0 700.0 240.0 80.0 "مرحبا بكم في ميتابيس")
-                    [{:font :regular :pt 10.5 :x 186.5 :y 689.5 :text "ميتابيس"}
-                     {:font :regular :pt 10.5 :x 225.6 :y 689.5 :text "في"}
-                     {:font :regular :pt 10.5 :x 240.7 :y 689.5 :text "بكم"}
+                    [{:font :regular :pt 10.5 :x 186.1 :y 689.5 :text "ميتابيس"}
+                     {:font :regular :pt 10.5 :x 225.4 :y 689.5 :text "في"}
+                     {:font :regular :pt 10.5 :x 240.6 :y 689.5 :text "بكم"}
                      {:font :regular :pt 10.5 :x 257.5 :y 689.5 :text "مرحبا"}]]
                    ["Hebrew markdown (word reorder + right align)"
                     (dmic 40.0 700.0 240.0 80.0 "שלום עולם מטאבייס")
-                    [{:font :regular :pt 10.5 :x 193.0 :y 689.5 :text "מטאבייס"}
-                     {:font :regular :pt 10.5 :x 233.7 :y 689.5 :text "עולם"}
+                    [{:font :regular :pt 10.5 :x 192.8 :y 689.5 :text "מטאבייס"}
+                     {:font :regular :pt 10.5 :x 233.6 :y 689.5 :text "עולם"}
                      {:font :regular :pt 10.5 :x 257.7 :y 689.5 :text "שלום"}]]
                    ["furigana (ruby reading drawn above base)"
                     (dmic 40.0 700.0 240.0 80.0 "{漢字|かんじ}です")
@@ -619,7 +625,7 @@
                    ["markdown hard line break (two trailing spaces)"
                     (dmic 40.0 700.0 240.0 80.0 "one two  \nthree")
                     [{:font :regular :pt 10.5 :x 40.0 :y 689.5 :text "one"}
-                     {:font :regular :pt 10.5 :x 60.0 :y 689.5 :text "two"}
+                     {:font :regular :pt 10.5 :x 62.8 :y 689.5 :text "two"}
                      {:font :regular :pt 10.5 :x 40.0 :y 675.9 :text "three"}]]]]
             (is (= expected (capture-line-draws! render))
                 nm))
