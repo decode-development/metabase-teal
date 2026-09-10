@@ -685,6 +685,23 @@
                   (:channels (mt/user-http-request :rasta :put 200 (str "pulse/" pulse-id)
                                                    {:channels [new-channel]})))))))))
 
+(deftest update-channels-accepts-day-n-schedule-frame-test
+  (testing "PUT /api/pulse/:id"
+    (testing "accepts a day-N schedule_frame for a monthly schedule, not just first/mid/last
+             (PulseScheduleFrame must stay in sync with pulse-channel.clj's schedule-frames set,
+             which already includes day-1..day-28 -- see #1190)"
+      (mt/with-temp
+        [:model/Pulse        {pulse-id :id} {}
+         :model/PulseChannel pc             (assoc pulse-channel-email-default :pulse_id pulse-id)]
+        (let [new-channel (assoc pulse-channel-email-default
+                                 :id (:id pc)
+                                 :schedule_type "monthly"
+                                 :schedule_frame "day-5"
+                                 :schedule_hour 10)]
+          (is (=? [new-channel]
+                  (:channels (mt/user-http-request :rasta :put 200 (str "pulse/" pulse-id)
+                                                   {:channels [new-channel]})))))))))
+
 (deftest update-channels-add-new-channel-test
   (testing "PUT /api/pulse/:id"
     (testing "add a new pulse channel"
