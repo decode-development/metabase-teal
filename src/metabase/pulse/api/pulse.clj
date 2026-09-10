@@ -24,6 +24,7 @@
    [metabase.pulse.models.pulse-channel :as pulse-channel]
    [metabase.pulse.send :as pulse.send]
    [metabase.util :as u]
+   [metabase.util.cron :as u.cron]
    [metabase.util.i18n :refer [tru]]
    [metabase.util.malli.schema :as ms]
    [toucan2.core :as t2]))
@@ -161,8 +162,12 @@
 
 (def ^:private PulseScheduleFrame
   "Matches pulse-channel.clj's `schedule-frames` set (== frontend ScheduleFrameType,
-  frontend/src/metabase-types/api/settings.ts)."
-  [:enum "first" "mid" "last"])
+  frontend/src/metabase-types/api/settings.ts) by building from the same source,
+  `metabase.util.cron/calendar-day-frames`, rather than hand-copying the values --
+  pulse-channel.clj's set had grown to include `day-1`..`day-28` alongside
+  first/mid/last, but this schema was never updated to match, silently rejecting every
+  day-N subscription at the API boundary."
+  (into [:enum "first" "mid" "last"] u.cron/calendar-day-frames))
 
 (def ^:private PulseScheduleHour
   "Matches pulse-channel.clj's `hour-of-day?`."
