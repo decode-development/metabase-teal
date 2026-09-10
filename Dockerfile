@@ -9,7 +9,13 @@ ARG VERSION
 
 WORKDIR /home/node
 
-RUN apt-get update && apt-get upgrade -y && apt-get install wget apt-transport-https gpg curl git -y \
+# TEAL PATCH -- keep on rebase. bullseye reached EOL 2026-08-31 and its
+# bullseye-security Release file expired 2026-09-07, so a plain `apt-get update`
+# exits 100 and the builder stage dies before it reaches Clojure. Upstream still
+# pins node:22-bullseye and has no fix. Drop this only when the base image moves
+# to bookworm or later.
+RUN echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no-check-valid-until \
+    && apt-get update && apt-get upgrade -y && apt-get install wget apt-transport-https gpg curl git -y \
     && wget -qO - https://packages.adoptium.net/artifactory/api/gpg/key/public | gpg --dearmor | tee /etc/apt/trusted.gpg.d/adoptium.gpg > /dev/null \
     && echo "deb https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print$2}' /etc/os-release) main" | tee /etc/apt/sources.list.d/adoptium.list \
     && apt-get update \
