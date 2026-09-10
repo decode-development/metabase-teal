@@ -2,7 +2,12 @@
 # STAGE 1: builder
 ###################
 
-FROM node:22-bullseye AS builder
+# TEAL PATCH -- keep on rebase. Upstream pins node:22-bullseye. Bullseye reached
+# EOL 2026-08-31, its bullseye-security Release file expired 2026-09-07, and the
+# security pool was then emptied, so `apt install temurin-25-jdk` 404s on
+# libasound2 and the builder stage dies before it reaches Clojure. Drop this only
+# when upstream moves its builder off bullseye.
+FROM node:22-bookworm AS builder
 
 ARG MB_EDITION=oss
 ARG VERSION
