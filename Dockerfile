@@ -2,20 +2,19 @@
 # STAGE 1: builder
 ###################
 
-FROM node:22-bullseye AS builder
+# TEAL PATCH -- keep on rebase. Upstream pins node:22-bullseye. Bullseye reached
+# EOL 2026-08-31, its bullseye-security Release file expired 2026-09-07, and the
+# security pool was then emptied, so `apt install temurin-25-jdk` 404s on
+# libasound2 and the builder stage dies before it reaches Clojure. Drop this only
+# when upstream moves its builder off bullseye.
+FROM node:22-bookworm AS builder
 
 ARG MB_EDITION=oss
 ARG VERSION
 
 WORKDIR /home/node
 
-# TEAL PATCH -- keep on rebase. bullseye reached EOL 2026-08-31 and its
-# bullseye-security Release file expired 2026-09-07, so a plain `apt-get update`
-# exits 100 and the builder stage dies before it reaches Clojure. Upstream still
-# pins node:22-bullseye and has no fix. Drop this only when the base image moves
-# to bookworm or later.
-RUN echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no-check-valid-until \
-    && apt-get update && apt-get upgrade -y && apt-get install wget apt-transport-https gpg curl git -y \
+RUN apt-get update && apt-get upgrade -y && apt-get install wget apt-transport-https gpg curl git -y \
     && wget -qO - https://packages.adoptium.net/artifactory/api/gpg/key/public | gpg --dearmor | tee /etc/apt/trusted.gpg.d/adoptium.gpg > /dev/null \
     && echo "deb https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print$2}' /etc/os-release) main" | tee /etc/apt/sources.list.d/adoptium.list \
     && apt-get update \
