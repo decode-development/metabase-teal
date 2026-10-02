@@ -45,7 +45,7 @@ jobs:
   backend:
     name: Backend tests
     if: ${{ inputs.backend }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 45
     env:
       # Chart-rendering tests (metabase.channel.render.body-test) call into GraalJS and need
@@ -83,7 +83,7 @@ jobs:
   frontend:
     name: Frontend type-check and unit tests
     if: ${{ inputs.frontend }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v6
